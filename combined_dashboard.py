@@ -1,7 +1,7 @@
 """Combined Qual + Quant Streamlit dashboard for Neo Smart Living market research.
 
 Merges interview (qualitative) and survey (quantitative) data into a unified
-6-tab view with cross-phase validation and 3-model reliability analysis.
+7-tab view with cross-phase validation, 3-model reliability, and bias detection.
 
 Run: streamlit run combined_dashboard.py
 """
@@ -21,7 +21,13 @@ from analytics import (
     model_comparison_likert,
     barrier_heatmap_data,
     segment_profiles,
+    key_metric_cis,
+    model_distribution_tests,
     LIKERT_KEYS, BARRIER_KEYS, CONCEPT_APPEAL, DEMOGRAPHIC_KEYS,
+)
+from validation import (
+    run_full_validation,
+    compute_respondent_scores,
 )
 
 st.set_page_config(
@@ -86,7 +92,8 @@ def tab_executive_summary(quant, qual, themes):
         c2.metric("Survey Models", quant["model"].nunique())
     if qual is not None:
         c3.metric("Interview Participants", len(qual))
-        c4.metric("Interview Models", qual["model"].nunique())
+        interview_mode = "Multi-Turn" if "interview_mode" in qual.columns and (qual["interview_mode"] == "multi_turn").any() else "Single-Turn"
+        c4.metric("Interview Mode", interview_mode)
 
     st.markdown("---")
 
@@ -214,14 +221,68 @@ def tab_qualitative(qual, themes):
                     for q in theme.get("supporting_quotes", []):
                         st.markdown(f"> *\"{q['quote']}\"* -- {q['respondent_id']}")
 
+    # Follow-up depth analysis (multi-turn)
+    has_followups = any(f"{q}_followup_question" in qual.columns for q in QUESTION_KEYS)
+    if has_followups:
+        st.subheader("Multi-Turn Interview Depth")
+        st.info("Interviews used adaptive follow-up probing: after each core question, the interviewer generated a contextual follow-up based on the response.")
+        col1, col2 = st.columns(2)
+        with col1:
+            if "interview_mode" in qual.columns:
+                mt_count = (qual["interview_mode"] == "multi_turn").sum()
+                st.metric("Multi-Turn Interviews", mt_count)
+            if "num_turns" in qual.columns:
+                st.metric("Avg Turns/Interview", f"{qual['num_turns'].mean():.0f}")
+        with col2:
+            if "sentiment_combined" in qual.columns and "sentiment_overall" in qual.columns:
+                core_mean = qual["sentiment_overall"].mean()
+                combined_mean = qual["sentiment_combined"].mean()
+                delta = combined_mean - core_mean
+                st.metric("Combined Sentiment (core + follow-up)", f"{combined_mean:.3f}",
+                         delta=f"{delta:+.3f} vs core only")
+
+        # Sentiment comparison: core vs follow-up per question
+        if any(f"sentiment_{q}_followup" in qual.columns for q in QUESTION_KEYS):
+            st.subheader("Core vs Follow-Up Sentiment")
+            comp_data = []
+            for q in QUESTION_KEYS:
+                core_col = f"sentiment_{q}"
+                fu_col = f"sentiment_{q}_followup"
+                if core_col in qual.columns and fu_col in qual.columns:
+                    comp_data.append({
+                        "Question": QUESTION_LABELS[q],
+                        "Core Response": qual[core_col].mean(),
+                        "Follow-Up Response": qual[fu_col].mean(),
+                    })
+            if comp_data:
+                comp_df = pd.DataFrame(comp_data).set_index("Question")
+                fig, ax = plt.subplots(figsize=(10, 5))
+                comp_df.plot(kind="barh", ax=ax, color=["steelblue", "coral"])
+                ax.set_xlabel("Mean VADER Sentiment")
+                ax.axvline(x=0, color="gray", linestyle="--", alpha=0.5)
+                ax.legend(loc="lower right")
+                plt.tight_layout()
+                st.pyplot(fig)
+                plt.close()
+                st.caption("Follow-up responses often reveal stronger sentiment as respondents elaborate on initial reactions.")
+
     # Transcript browser
     st.subheader("Transcript Browser")
     selected_persona = st.selectbox("Select persona", qual["persona_id"].unique())
     row = qual[qual["persona_id"] == selected_persona].iloc[0]
-    st.markdown(f"**{row['persona_name']}** | Model: {row['model']} | {row.get('age', '')} | {row.get('income', '')}")
+    interview_mode = row.get("interview_mode", "single_turn")
+    mode_label = "Multi-Turn" if interview_mode == "multi_turn" else "Single-Turn"
+    st.markdown(f"**{row['persona_name']}** | Model: {row['model']} | {row.get('age', '')} | {row.get('income', '')} | {mode_label}")
     for q in QUESTION_KEYS:
         if q in row and pd.notna(row[q]):
             st.markdown(f"**{q} ({QUESTION_LABELS[q]}):** {row[q]}")
+            # Show follow-up exchange if available
+            fu_q = f"{q}_followup_question"
+            fu_r = f"{q}_followup_response"
+            if fu_q in row and pd.notna(row.get(fu_q)) and str(row[fu_q]).strip():
+                st.markdown(f"> *Interviewer follow-up:* {row[fu_q]}")
+                if fu_r in row and pd.notna(row.get(fu_r)):
+                    st.markdown(f"> **Response:** {row[fu_r]}")
 
 
 # =============================================================================
@@ -601,10 +662,218 @@ def tab_methodology(quant, qual):
 
 
 # =============================================================================
+# Tab 7: Data Quality & Bias Detection
+# =============================================================================
+def tab_data_quality(quant):
+    st.header("Data Quality & Bias Detection")
+    st.markdown("*Automated checks for LLM response biases and data quality issues*")
+
+    if quant is None:
+        st.warning("No survey data found.")
+        return
+
+    report = run_full_validation(quant)
+    summary = report["summary"]
+
+    # Grade banner
+    grade_colors = {"A": "green", "B": "blue", "C": "orange", "D": "red"}
+    grade = summary["grade"]
+    st.markdown(f"### Overall Grade: **{grade}** — {summary['issues_found']} issues / {summary['total_checks']} checks")
+    st.info(summary["recommendation"])
+
+    st.markdown("---")
+
+    # ── Quality Checks ──
+    st.subheader("1. Response Quality Checks")
+    col1, col2, col3, col4 = st.columns(4)
+
+    attn = report["quality_checks"]["attention_check"]
+    if isinstance(attn, dict) and "pass_rate" in attn:
+        col1.metric("Attention Check (Q30)", f"{attn['pass_rate']*100:.0f}%",
+                    delta="Pass" if attn["pass_rate"] == 1.0 else "Issues")
+
+    sl = report["quality_checks"]["straightlining"]
+    if isinstance(sl, dict) and "flagged_rate" in sl:
+        col2.metric("Straightlining", f"{sl['flagged_count']} flagged",
+                    delta=f"{sl['flagged_rate']*100:.0f}% rate")
+
+    rv = report["quality_checks"]["range_violations"]
+    if isinstance(rv, dict):
+        col3.metric("Range Violations", rv["total_violations"])
+
+    dc = report["quality_checks"]["demographic_consistency"]
+    if isinstance(dc, dict) and "mismatches" in dc:
+        col4.metric("Demo Mismatches", dc["mismatches"])
+
+    # ── Bias Detection ──
+    st.subheader("2. LLM Bias Detection")
+
+    # Central tendency
+    ct = report["bias_detection"]["central_tendency"]
+    if isinstance(ct, dict) and "status" not in ct:
+        st.markdown("**Central Tendency Bias** — Do models cluster responses at the midpoint (3)?")
+        ct_data = []
+        for model, result in ct.items():
+            ct_data.append({
+                "Model": model,
+                "Midpoint Rate": f"{result['midpoint_rate']*100:.1f}%",
+                "Mean Item SD": f"{result['mean_item_sd']:.2f}",
+                "Flagged": "Yes" if result.get("flagged") or result.get("low_variance_flag") else "No",
+            })
+        st.dataframe(pd.DataFrame(ct_data), use_container_width=True, hide_index=True)
+
+    # Acquiescence
+    aq = report["bias_detection"]["acquiescence"]
+    if isinstance(aq, dict) and "status" not in aq:
+        st.markdown("**Acquiescence Bias** — Do models skew positive (always agree)?")
+        aq_data = []
+        for model, result in aq.items():
+            aq_data.append({
+                "Model": model,
+                "Grand Mean": f"{result['grand_mean']:.2f}",
+                "High Items": result["high_item_count"],
+                "Flagged": "Yes" if result.get("flagged") else "No",
+            })
+        st.dataframe(pd.DataFrame(aq_data), use_container_width=True, hide_index=True)
+
+    # Extreme response
+    er = report["bias_detection"]["extreme_response"]
+    if isinstance(er, dict) and "status" not in er:
+        st.markdown("**Extreme Response Bias** — Do models overuse 1s and 5s?")
+        er_data = []
+        for model, result in er.items():
+            er_data.append({
+                "Model": model,
+                "Extreme Rate": f"{result['extreme_rate']*100:.1f}%",
+                "Flagged": "Yes" if result.get("flagged") else "No",
+            })
+        st.dataframe(pd.DataFrame(er_data), use_container_width=True, hide_index=True)
+
+    # Response distribution comparison (visual)
+    st.subheader("3. Response Distribution Comparison")
+    models = sorted(quant["model"].unique())
+    compare_vars = ["Q1", "Q2", "Q7", "Q15", "Q16", "Q17"]
+    compare_labels = ["Purchase Int.", "Purchase Lik.", "Permit-Light",
+                     "V: Permit", "V: Speed", "V: Quality"]
+    available = [(v, l) for v, l in zip(compare_vars, compare_labels) if v in quant.columns]
+
+    if available and len(models) >= 2:
+        n_vars = len(available)
+        fig, axes = plt.subplots(2, (n_vars + 1) // 2, figsize=(14, 8))
+        axes = axes.flatten()
+        for i, (var, label) in enumerate(available):
+            ax = axes[i]
+            for model in models:
+                vals = quant.loc[quant["model"] == model, var].dropna()
+                counts = vals.value_counts().reindex([1, 2, 3, 4, 5], fill_value=0)
+                pcts = counts / counts.sum() * 100
+                ax.plot([1, 2, 3, 4, 5], pcts.values, "o-", label=model, markersize=4)
+            ax.set_title(label, fontsize=10)
+            ax.set_xlabel("Rating")
+            ax.set_ylabel("%" if i % ((n_vars + 1) // 2) == 0 else "")
+            ax.set_xticks([1, 2, 3, 4, 5])
+            ax.set_ylim(0, None)
+        # Hide extra axes
+        for j in range(len(available), len(axes)):
+            axes[j].set_visible(False)
+        axes[0].legend(fontsize=7)
+        plt.suptitle("Response Value Distribution by Model", fontsize=12)
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
+
+    # KS tests
+    st.subheader("4. Kolmogorov-Smirnov Distribution Tests")
+    st.markdown("*KS tests whether response distributions have the same shape across models "
+               "(stricter than comparing means alone).*")
+    ks_df = model_distribution_tests(quant)
+    if not ks_df.empty:
+        sig_only = st.checkbox("Show only significant KS results", value=False, key="ks_sig")
+        display_df = ks_df[ks_df["Significant (p<.05)"]] if sig_only else ks_df
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        n_sig = ks_df["Significant (p<.05)"].sum()
+        n_total = len(ks_df)
+        if n_sig == 0:
+            st.success(f"No significant distribution differences across {n_total} KS tests. Distributions are consistent.")
+        elif n_sig / n_total < 0.2:
+            st.success(f"Only {n_sig}/{n_total} tests significant. Most distributions are consistent across models.")
+        else:
+            st.warning(f"{n_sig}/{n_total} tests significant. Some distributions differ meaningfully between models.")
+
+    # Confidence intervals
+    st.subheader("5. Bootstrap Confidence Intervals (95%)")
+    ci_df = key_metric_cis(quant, group_col="model")
+    if not ci_df.empty:
+        # Forest plot
+        overall = ci_df[ci_df["Group"] == "Overall"].copy()
+        if not overall.empty:
+            fig, ax = plt.subplots(figsize=(10, max(3, len(overall) * 0.5)))
+            y_pos = range(len(overall))
+            ax.errorbar(
+                overall["point_estimate"], y_pos,
+                xerr=[overall["point_estimate"] - overall["ci_lower"],
+                      overall["ci_upper"] - overall["point_estimate"]],
+                fmt="o", color="steelblue", capsize=4, markersize=6
+            )
+            ax.set_yticks(list(y_pos))
+            ax.set_yticklabels(overall["Label"].values)
+            ax.set_xlabel("Mean Rating (1-5)")
+            ax.axvline(x=3, color="gray", linestyle="--", alpha=0.5, label="Midpoint")
+            ax.set_title("Overall Key Metrics with 95% Bootstrap CI")
+            ax.legend()
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close()
+
+        # By-model table
+        st.markdown("**By Model:**")
+        by_model = ci_df[ci_df["Group"] != "Overall"].copy()
+        by_model["CI"] = by_model.apply(
+            lambda r: f"{r['point_estimate']:.2f} [{r['ci_lower']:.2f}, {r['ci_upper']:.2f}]", axis=1
+        )
+        pivot = by_model.pivot_table(index="Label", columns="Group", values="CI", aggfunc="first")
+        st.dataframe(pivot, use_container_width=True)
+
+    # Per-respondent quality scores
+    st.subheader("6. Per-Respondent Quality Scores")
+    scores_df = compute_respondent_scores(quant)
+    if not scores_df.empty:
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Mean Score", f"{scores_df['quality_score'].mean():.0f}/100")
+        col2.metric("Min Score", f"{scores_df['quality_score'].min()}/100")
+        col3.metric("Scores < 60", f"{(scores_df['quality_score'] < 60).sum()}")
+
+        # Histogram
+        fig, ax = plt.subplots(figsize=(8, 3))
+        ax.hist(scores_df["quality_score"], bins=range(0, 105, 5), color="steelblue", edgecolor="white")
+        ax.axvline(x=60, color="red", linestyle="--", alpha=0.7, label="Threshold (60)")
+        ax.set_xlabel("Quality Score")
+        ax.set_ylabel("Count")
+        ax.legend()
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
+
+        # By model
+        fig, ax = plt.subplots(figsize=(8, 3))
+        scores_df.boxplot(column="quality_score", by="model", ax=ax, grid=False)
+        ax.set_title("")
+        plt.suptitle("")
+        ax.set_ylabel("Quality Score")
+        plt.tight_layout()
+        st.pyplot(fig)
+        plt.close()
+
+        st.download_button("Download quality scores CSV",
+                          scores_df.to_csv(index=False).encode("utf-8"),
+                          "validation_scores.csv", "text/csv")
+
+
+# =============================================================================
 # Main App
 # =============================================================================
 st.title("Neo Smart Living -- Combined Research Dashboard")
-st.markdown("*Qualitative + Quantitative Market Research with 3-Model Triangulation*")
+st.markdown("*Qualitative + Quantitative Market Research with 3-Model Triangulation & Bias Detection*")
 
 # Check for data
 missing = []
@@ -644,12 +913,13 @@ if quant is not None and quant.empty:
     st.stop()
 
 # Tabs
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "Executive Summary",
     "Qualitative Insights",
     "Quantitative Results",
     "Cross-Phase Validation",
     "3-Model Reliability",
+    "Data Quality & Bias",
     "Methodology & Confidence",
 ])
 
@@ -664,4 +934,6 @@ with tab4:
 with tab5:
     tab_model_reliability(quant, qual)
 with tab6:
+    tab_data_quality(quant)
+with tab7:
     tab_methodology(quant, qual)
