@@ -117,8 +117,8 @@ def tab_sentiment(df):
         plt.close()
 
     # Model comparison
-    st.subheader("Sentiment by Model (Box Plot + Mann-Whitney U)")
-    models = df["model"].unique()
+    st.subheader("Sentiment by Model (Box Plot + Statistical Tests)")
+    models = sorted(df["model"].unique())
     if len(models) >= 2:
         fig, ax = plt.subplots(figsize=(10, 4))
         df.boxplot(column="sentiment_overall", by="model", ax=ax, grid=False)
@@ -129,11 +129,22 @@ def tab_sentiment(df):
         st.pyplot(fig)
         plt.close()
 
-        g1 = df.loc[df["model"] == models[0], "sentiment_overall"].dropna()
-        g2 = df.loc[df["model"] == models[1], "sentiment_overall"].dropna()
-        if len(g1) > 0 and len(g2) > 0:
-            stat, p = stats.mannwhitneyu(g1, g2, alternative="two-sided")
-            st.markdown(f"**Mann-Whitney U**: U={stat:.1f}, p={p:.4f} {'(significant)' if p < 0.05 else '(not significant)'}")
+        # Kruskal-Wallis for 3+ models
+        if len(models) >= 3:
+            groups = [df.loc[df["model"] == m, "sentiment_overall"].dropna() for m in models]
+            groups = [g for g in groups if len(g) > 0]
+            if len(groups) >= 3:
+                h_stat, p_kw = stats.kruskal(*groups)
+                st.markdown(f"**Kruskal-Wallis H**: H={h_stat:.1f}, p={p_kw:.4f} {'(significant)' if p_kw < 0.05 else '(not significant)'}")
+
+        # Pairwise Mann-Whitney U for all pairs
+        from itertools import combinations
+        for m1, m2 in combinations(models, 2):
+            g1 = df.loc[df["model"] == m1, "sentiment_overall"].dropna()
+            g2 = df.loc[df["model"] == m2, "sentiment_overall"].dropna()
+            if len(g1) > 0 and len(g2) > 0:
+                stat, p = stats.mannwhitneyu(g1, g2, alternative="two-sided")
+                st.markdown(f"**Mann-Whitney U ({m1} vs {m2})**: U={stat:.1f}, p={p:.4f} {'(significant)' if p < 0.05 else '(not significant)'}")
 
 
 def tab_emotional_tone(df):

@@ -93,30 +93,65 @@ def descriptive_categorical(df, group_cols):
 
 
 def model_comparison_likert(df):
-    """Mann-Whitney U + rank-biserial effect size for all Likert vars between models."""
-    models = df["model"].unique()
+    """Pairwise Mann-Whitney U + rank-biserial effect size for all Likert vars between all model pairs.
+
+    Also includes Kruskal-Wallis H test when 3+ models are present.
+    Returns a dict with keys: 'pairwise' (DataFrame) and 'kruskal_wallis' (DataFrame).
+    For backward compatibility, if only 2 models exist, returns just the pairwise DataFrame.
+    """
+    models = sorted(df["model"].unique())
     if len(models) < 2:
         return pd.DataFrame()
-    m1, m2 = models[0], models[1]
+
     numeric_cols = [c for c in ALL_NUMERIC if c in df.columns and c != "Q30"]
-    rows = []
-    for col in numeric_cols:
-        g1 = df.loc[df["model"] == m1, col].dropna()
-        g2 = df.loc[df["model"] == m2, col].dropna()
-        if len(g1) == 0 or len(g2) == 0:
-            continue
-        label = LIKERT_KEYS.get(col) or BARRIER_KEYS.get(col) or CONCEPT_APPEAL.get(col, col)
-        stat, p = stats.mannwhitneyu(g1, g2, alternative="two-sided")
-        n1, n2 = len(g1), len(g2)
-        r = 1 - (2 * stat) / (n1 * n2)  # rank-biserial
-        rows.append({
-            "Variable": col, "Label": label,
-            f"Mean ({m1})": round(g1.mean(), 3), f"Mean ({m2})": round(g2.mean(), 3),
-            "U": round(stat, 1), "p": round(p, 4),
-            "Effect Size (r)": round(r, 3),
-            "Significant (p<.05)": p < 0.05,
-        })
-    return pd.DataFrame(rows)
+
+    # Pairwise Mann-Whitney U for all model pairs
+    pairwise_rows = []
+    from itertools import combinations
+    for m1, m2 in combinations(models, 2):
+        for col in numeric_cols:
+            g1 = df.loc[df["model"] == m1, col].dropna()
+            g2 = df.loc[df["model"] == m2, col].dropna()
+            if len(g1) == 0 or len(g2) == 0:
+                continue
+            label = LIKERT_KEYS.get(col) or BARRIER_KEYS.get(col) or CONCEPT_APPEAL.get(col, col)
+            stat, p = stats.mannwhitneyu(g1, g2, alternative="two-sided")
+            n1, n2 = len(g1), len(g2)
+            r = 1 - (2 * stat) / (n1 * n2)  # rank-biserial
+            pairwise_rows.append({
+                "Comparison": f"{m1} vs {m2}",
+                "Variable": col, "Label": label,
+                f"Mean ({m1})": round(g1.mean(), 3), f"Mean ({m2})": round(g2.mean(), 3),
+                "U": round(stat, 1), "p": round(p, 4),
+                "Effect Size (r)": round(r, 3),
+                "Significant (p<.05)": p < 0.05,
+            })
+    pairwise_df = pd.DataFrame(pairwise_rows)
+
+    # Kruskal-Wallis H test for 3+ group comparison
+    if len(models) >= 3:
+        kw_rows = []
+        for col in numeric_cols:
+            groups = [df.loc[df["model"] == m, col].dropna() for m in models]
+            groups = [g for g in groups if len(g) > 0]
+            if len(groups) < 3:
+                continue
+            label = LIKERT_KEYS.get(col) or BARRIER_KEYS.get(col) or CONCEPT_APPEAL.get(col, col)
+            h_stat, p = stats.kruskal(*groups)
+            # Epsilon-squared effect size: H / (n-1)
+            n_total = sum(len(g) for g in groups)
+            epsilon_sq = h_stat / (n_total - 1) if n_total > 1 else 0
+            kw_rows.append({
+                "Variable": col, "Label": label,
+                **{f"Mean ({m})": round(df.loc[df["model"] == m, col].dropna().mean(), 3) for m in models},
+                "H": round(h_stat, 3), "p": round(p, 4),
+                "Epsilon-sq": round(epsilon_sq, 4),
+                "Significant (p<.05)": p < 0.05,
+            })
+        kw_df = pd.DataFrame(kw_rows)
+        return {"pairwise": pairwise_df, "kruskal_wallis": kw_df}
+
+    return pairwise_df
 
 
 def model_comparison_categorical(df):

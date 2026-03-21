@@ -254,15 +254,16 @@ def tab_model_comparison(df):
         "Sponsorship Impact",
     ]
 
-    st.subheader("Mean Comparison (Paired Bar Chart)")
+    st.subheader("Mean Comparison (Grouped Bar Chart)")
     means = df.groupby("model")[compare_vars].mean()
     fig, ax = plt.subplots(figsize=(12, 5))
     x = np.arange(len(compare_vars))
-    width = 0.35
+    n_models = len(models)
+    width = 0.8 / n_models
     for i, model in enumerate(models):
         vals = means.loc[model, compare_vars].values
-        ax.bar(x + i * width, vals, width, label=model)
-    ax.set_xticks(x + width / 2)
+        ax.bar(x + i * width - (n_models - 1) * width / 2, vals, width, label=model)
+    ax.set_xticks(x)
     ax.set_xticklabels(compare_labels, rotation=30, ha="right")
     ax.set_ylabel("Mean Rating (1-5)")
     ax.set_ylim(1, 5)
@@ -271,9 +272,20 @@ def tab_model_comparison(df):
     st.pyplot(fig)
     plt.close()
 
-    st.subheader("Mann-Whitney U Tests (with Effect Size)")
-    mc = model_comparison_likert(df)
-    st.dataframe(mc, use_container_width=True)
+    st.subheader("Statistical Tests (with Effect Size)")
+    mc_result = model_comparison_likert(df)
+    if isinstance(mc_result, dict):
+        mc = mc_result["pairwise"]
+        kw = mc_result["kruskal_wallis"]
+        st.markdown("**Kruskal-Wallis H Test (3-group comparison)**")
+        st.dataframe(kw, use_container_width=True)
+        st.caption("Epsilon-squared: effect size for Kruskal-Wallis. < 0.01 negligible, 0.01-0.06 small, 0.06-0.14 medium, > 0.14 large.")
+        st.markdown("**Pairwise Mann-Whitney U Tests**")
+        st.dataframe(mc, use_container_width=True)
+    else:
+        mc = mc_result
+        st.markdown("**Mann-Whitney U Tests**")
+        st.dataframe(mc, use_container_width=True)
     st.caption("Effect size r: rank-biserial correlation (r = 1 − 2U/n₁n₂). |r| < 0.3 small, 0.3-0.5 medium, > 0.5 large.")
 
     st.subheader("Segment Profile Radar Chart")
@@ -309,7 +321,8 @@ def tab_model_comparison(df):
     st.pyplot(fig)
     plt.close()
 
-    st.download_button("Download model comparison CSV", to_csv(mc), "model_comparison.csv", "text/csv")
+    if isinstance(mc, pd.DataFrame) and not mc.empty:
+        st.download_button("Download model comparison CSV", to_csv(mc), "model_comparison.csv", "text/csv")
 
 
 def tab_demographics(df):

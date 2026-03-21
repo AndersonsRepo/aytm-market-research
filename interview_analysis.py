@@ -74,7 +74,7 @@ def call_openrouter(api_key, model, system_prompt, user_prompt, temperature=0.3,
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
-    if model.startswith("openai/"):
+    if model.startswith("openai/") or model.startswith("anthropic/"):
         data["response_format"] = {"type": "json_object"}
 
     for attempt in range(MAX_RETRIES):

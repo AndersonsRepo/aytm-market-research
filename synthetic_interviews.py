@@ -1,4 +1,4 @@
-"""Generate 30 synthetic depth interviews using GPT-4.1-mini and Gemini 2.5 Flash via OpenRouter."""
+"""Generate 30 synthetic depth interviews using GPT-4.1-mini, Gemini 2.5 Flash, and Claude Sonnet 4 via OpenRouter."""
 
 import json
 import os
@@ -79,7 +79,7 @@ def call_openrouter(api_key, model, system_prompt, user_prompt):
         "temperature": 0.8,
         "max_tokens": 3000,
     }
-    if model.startswith("openai/"):
+    if model.startswith("openai/") or model.startswith("anthropic/"):
         data["response_format"] = {"type": "json_object"}
 
     for attempt in range(MAX_RETRIES):

@@ -1,4 +1,4 @@
-"""Generate 60 synthetic survey respondents using GPT-4.1-mini and Gemini 2.5 Flash via OpenRouter."""
+"""Generate 90 synthetic survey respondents using GPT-4.1-mini, Gemini 2.5 Flash, and Claude Sonnet 4 via OpenRouter."""
 
 import json
 import os
@@ -19,8 +19,9 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODELS = {
     "openai/gpt-4.1-mini": "GPT-4.1-mini",
     "google/gemini-2.5-flash": "Gemini-2.5-Flash",
+    "anthropic/claude-sonnet-4-20250514": "Claude-Sonnet-4",
 }
-RESPONDENTS_PER_SEGMENT_PER_MODEL = 6  # 6 * 5 segments * 2 models = 60
+RESPONDENTS_PER_SEGMENT_PER_MODEL = 6  # 6 * 5 segments * 3 models = 90
 MAX_WORKERS = 10
 MAX_RETRIES = 3
 CHECKPOINT_INTERVAL = 10
@@ -147,8 +148,8 @@ def call_openrouter(api_key, model, system_prompt, user_prompt):
         "temperature": 0.8,
         "max_tokens": 2000,
     }
-    # GPT supports response_format; Gemini does not
-    if model.startswith("openai/"):
+    # GPT and Claude support response_format; Gemini does not
+    if model.startswith("openai/") or model.startswith("anthropic/"):
         data["response_format"] = {"type": "json_object"}
 
     for attempt in range(MAX_RETRIES):

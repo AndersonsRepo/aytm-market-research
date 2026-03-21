@@ -46,8 +46,14 @@ def save_csvs(df):
     dc.to_csv(OUT / "descriptive_categorical.csv", index=False)
 
     # Model comparison
-    mc = model_comparison_likert(df)
-    mc.to_csv(OUT / "model_comparison.csv", index=False)
+    mc_result = model_comparison_likert(df)
+    if isinstance(mc_result, dict):
+        mc = mc_result["pairwise"]
+        mc.to_csv(OUT / "model_comparison_pairwise.csv", index=False)
+        mc_result["kruskal_wallis"].to_csv(OUT / "model_comparison_kruskal_wallis.csv", index=False)
+    else:
+        mc = mc_result
+        mc.to_csv(OUT / "model_comparison.csv", index=False)
 
     # Segment profiles
     sp = segment_profiles(df)
@@ -107,10 +113,11 @@ def chart_model_comparison(df):
     means = df.groupby("model")[compare_vars].mean()
     fig, ax = plt.subplots(figsize=(10, 5))
     x = np.arange(len(compare_vars))
-    width = 0.35
+    n_models = len(models)
+    width = 0.8 / n_models
     for i, m in enumerate(models):
-        ax.bar(x + i * width, means.loc[m].values, width, label=m)
-    ax.set_xticks(x + width / 2)
+        ax.bar(x + i * width - (n_models - 1) * width / 2, means.loc[m].values, width, label=m)
+    ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=30, ha="right")
     ax.set_ylabel("Mean Rating (1-5)")
     ax.set_ylim(1, 5)
@@ -173,12 +180,17 @@ def executive_summary(df, mc, sp):
         print(f"  {lbl}: {df[col].mean():.2f}")
 
     print("\n--- Model Differences ---")
-    sig = mc[mc["Significant (p<.05)"]]
-    if sig.empty:
-        print("  No significant differences at p<.05")
+    if isinstance(mc, pd.DataFrame) and not mc.empty:
+        sig = mc[mc["Significant (p<.05)"]]
+        if sig.empty:
+            print("  No significant differences at p<.05")
+        else:
+            for _, row in sig.iterrows():
+                comparison = row.get("Comparison", "")
+                prefix = f"[{comparison}] " if comparison else ""
+                print(f"  {prefix}{row['Label']}: U={row['U']}, p={row['p']}, r={row['Effect Size (r)']}")
     else:
-        for _, row in sig.iterrows():
-            print(f"  {row['Label']}: U={row['U']}, p={row['p']}, r={row['Effect Size (r)']}")
+        print("  No model comparison data available")
 
     print("\n--- Top Concept Appeal ---")
     appeal_cols = ["Q9a", "Q10a", "Q11a", "Q12a", "Q13a"]
@@ -207,4 +219,5 @@ if __name__ == "__main__":
     chart_model_comparison(df)
     chart_radar_by_segment(df)
 
+    # mc is already the pairwise DataFrame from save_csvs
     executive_summary(df, mc, sp)

@@ -280,12 +280,15 @@ INTERVIEW_PERSONAS = [
 ]
 
 # Model assignment: interleaved so each model gets diverse cross-section
+# 3-way round-robin: GPT (i%3==0), Gemini (i%3==1), Claude (i%3==2)
 MODEL_ASSIGNMENTS = {
-    "openai/gpt-4.1-mini": [p for i, p in enumerate(INTERVIEW_PERSONAS) if i % 2 == 0],
-    "google/gemini-2.5-flash": [p for i, p in enumerate(INTERVIEW_PERSONAS) if i % 2 == 1],
+    "openai/gpt-4.1-mini": [p for i, p in enumerate(INTERVIEW_PERSONAS) if i % 3 == 0],
+    "google/gemini-2.5-flash": [p for i, p in enumerate(INTERVIEW_PERSONAS) if i % 3 == 1],
+    "anthropic/claude-sonnet-4-20250514": [p for i, p in enumerate(INTERVIEW_PERSONAS) if i % 3 == 2],
 }
 
 MODEL_LABELS = {
     "openai/gpt-4.1-mini": "GPT-4.1-mini",
     "google/gemini-2.5-flash": "Gemini-2.5-Flash",
+    "anthropic/claude-sonnet-4-20250514": "Claude-Sonnet-4",
 }

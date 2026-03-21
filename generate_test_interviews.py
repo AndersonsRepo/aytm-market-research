@@ -491,15 +491,15 @@ def generate_test_themes(analysis_rows):
 
 
 def main():
-    # Interleaved model assignment
-    model_ids = ["openai/gpt-4.1-mini", "google/gemini-2.5-flash"]
+    # 3-way interleaved model assignment: GPT, Gemini, Claude
+    model_ids = ["openai/gpt-4.1-mini", "google/gemini-2.5-flash", "anthropic/claude-sonnet-4-20250514"]
 
     transcript_rows = []
     analysis_rows = []
     tendency_map = {}
 
     for i, persona in enumerate(INTERVIEW_PERSONAS):
-        model_id = model_ids[i % 2]
+        model_id = model_ids[i % 3]
         model_label = MODEL_LABELS[model_id]
         row, tendency, profile = generate_test_transcript(persona, model_label)
         transcript_rows.append(row)
