@@ -731,6 +731,25 @@ def tab_methodology(quant, qual):
         else:
             st.warning("No interview data loaded.")
 
+    st.subheader("Cost Comparison")
+    cost_data = {
+        "Method": [
+            "Traditional Qual (20-30 interviews)",
+            "Traditional Quant (300-600 surveys)",
+            "Full Traditional Study",
+            "This Pipeline (test data)",
+            "This Pipeline (live API)",
+        ],
+        "Cost": ["$3,000–$9,000", "$6,000–$24,000", "$9,000–$48,000", "$0.00", "~$0.10"],
+        "Time": ["2–4 weeks", "2–6 weeks", "4–10 weeks", "< 1 minute", "~5 minutes"],
+        "Sample": ["20–30", "300–600", "320–630", "120 (30 + 90)", "120 (30 + 90)"],
+    }
+    st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
+    st.caption(
+        "Synthetic research complements — but does not replace — traditional methods. "
+        "It's ideal for rapid hypothesis testing, instrument pre-testing, and early-stage market sizing."
+    )
+
     st.subheader("Limitations")
     st.markdown("""
     1. **Synthetic, not real**: All responses are LLM-generated. They approximate but do not replace real consumer research.
