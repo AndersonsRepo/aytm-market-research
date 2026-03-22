@@ -138,7 +138,14 @@ Stage 1: Client Discovery        Stage 2: Consumer Interviews       Stages 3-4: 
 | `interview_dashboard.py` | Streamlit dashboard with 6 tabs: Overview, Sentiment, Emotional Tone, Thematic Analysis, Segment Discovery, Full Transcripts | 0 |
 | `generate_test_interviews.py` | Creates realistic test data without API calls (for development) | 0 |
 
-### Phase 2: Survey Pipeline
+### Stage 3: AI-Assisted Survey Design
+
+| File | What It Does | API Calls |
+|---|---|---|
+| `survey_design.py` | 3 LLMs independently generate survey instruments from interview themes and discovery insights; cross-model section coverage analysis | 3 |
+| `generate_test_survey_design.py` | Creates realistic test survey designs without API calls (for development) | 0 |
+
+### Stage 4: Survey Response Pipeline
 
 | File | What It Does | API Calls |
 |---|---|---|
@@ -201,10 +208,10 @@ The challenge document describes 6 stages. Here's how they map to this code:
 |---|---|---|
 | Stage 1: Client Discovery Interview | `client_discovery.py`, `generate_test_discovery.py` | **Complete** — 3-model triangulated founder interview with business brief synthesis |
 | Stage 2: Qualitative Interview Simulation | `synthetic_interviews.py`, `multi_turn_interviews.py`, `interview_analysis.py` | **Complete** — 30 personas, 8 core + 8 adaptive follow-up questions, sentiment/emotion/LDA analysis |
-| Stage 3: Survey Design & Pre-Testing | `Input/Neo Smart Living - Survey_HighMedPriority.md` | **Complete** — 35-item instrument derived from client discovery and interview themes |
+| Stage 3: AI-Assisted Survey Design | `survey_design.py`, `generate_test_survey_design.py` | **Complete** — 3 models independently generate survey instruments from interview themes; cross-model section coverage analysis; question-to-theme traceability |
 | Stage 4: Quantitative Response Simulation | `synthetic_respondents.py` | **Complete** — 90 responses (5 segments × 6 respondents × 3 models), attention checks, demographic forcing |
 | Stage 5: Data Analysis | `analytics.py`, `validation.py`, `report.py` | **Complete** — Mann-Whitney U, Kruskal-Wallis H, KS tests, bootstrap CIs, bias detection, quality scoring |
-| Stage 6: Insights Presentation & Dashboard | `combined_dashboard.py` | **Complete** — 8-tab unified dashboard with cross-phase validation and methodology documentation |
+| Stage 6: Insights Presentation & Dashboard | `combined_dashboard.py`, `demo.py` | **Complete** — 9-tab unified dashboard with cross-phase validation, methodology documentation, and one-command demo runner |
 
 ---
 

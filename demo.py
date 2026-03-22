@@ -257,15 +257,33 @@ def print_findings():
     print(f"  Grade: {BOLD}{grade_color}{summary['grade']}{RESET} ({summary['issues_found']} issues / {summary['total_checks']} checks)")
     print(f"  {DIM}{summary['recommendation']}{RESET}")
 
-    # ── Bottom line ──
+    # ── Bottom line (data-driven) ──
     header("BOTTOM LINE FOR NEO SMART LIVING")
-    print(f"""
-  {BOLD}1. Lead with Home Office{RESET} — highest concept appeal across all segments
-  {BOLD}2. Permit-light messaging works{RESET} — Q7 scores consistently above midpoint
-  {BOLD}3. HOA is the #1 barrier{RESET} — invest in HOA navigation guides/support
-  {BOLD}4. Price is perceived as value{RESET} — when framed against ADUs, not sheds
-  {BOLD}5. Findings are robust{RESET} — consistent across 3 independent LLMs
-""")
+
+    # 1. Top concept from data
+    top_concept = sorted_concepts[0][0] if sorted_concepts else "Home Office"
+    top_concept_score = sorted_concepts[0][1] if sorted_concepts else 0
+    print(f"  {BOLD}1. Lead with {top_concept}{RESET} — highest concept appeal ({top_concept_score:.2f}/5)")
+
+    # 2. Permit-light effect from Q7
+    q7_delta = "above" if q7_mean > 3 else "below"
+    print(f"  {BOLD}2. Permit-light messaging {'works' if q7_mean > 3 else 'needs refinement'}{RESET} — Q7 = {q7_mean:.2f}/5 ({q7_delta} midpoint)")
+
+    # 3. Top barrier from data
+    top_barrier = sorted_barriers[0][0] if sorted_barriers else "Cost"
+    top_barrier_score = sorted_barriers[0][1] if sorted_barriers else 0
+    print(f"  {BOLD}3. {top_barrier} is the #1 barrier{RESET} — scored {top_barrier_score:.2f}/5 severity")
+
+    # 4. Top segment from data
+    top_seg = list(seg_means.items())[0] if len(seg_means) > 0 else ("Unknown", 0)
+    print(f"  {BOLD}4. {top_seg[0]} is the hottest segment{RESET} — purchase interest {top_seg[1]:.2f}/5")
+
+    # 5. Reliability from model comparison
+    if isinstance(mc, dict):
+        print(f"  {BOLD}5. Findings are {'robust' if robust_pct >= 80 else 'moderately reliable'}{RESET} — {robust_pct:.0f}% cross-model consistency")
+    else:
+        print(f"  {BOLD}5. Multi-model validation available{RESET}")
+    print()
 
 
 # ── Static Report ────────────────────────────────────────────────────────
