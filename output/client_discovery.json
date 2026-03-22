@@ -1,0 +1,124 @@
+{
+  "title": "Neo Smart Living — Client Discovery Brief",
+  "generated": "2026-03-22T05:09:49.333477+00:00",
+  "models_used": [
+    "gpt-4.1-mini",
+    "gemini-2.5-flash",
+    "claude-sonnet-4"
+  ],
+  "sections": {
+    "DQ1_company_background": {
+      "label": "Company Background",
+      "question": "Tell me about Neo Smart Living. When was the company founded, what's your mission, and what gap in the market are you addressing?",
+      "responses": {
+        "gpt-4.1-mini": "Neo Smart Living was founded in 2023 right here in Southern California. We saw a massive gap — millions of homeowners have underused backyards but the only options were cheap sheds that fall apart or full ADUs that cost six figures and take months. Our mission is to make high-quality, professionally-installed backyard living spaces accessible to every homeowner. We're a small team, very lean, selling direct-to-consumer through our website and Instagram.",
+        "gemini-2.5-flash": "We started Neo Smart Living in 2023 because my co-founder and I both struggled with working from home during COVID — sharing kitchen tables, taking calls in closets, the whole thing. And when we looked at backyard solutions, everything was either a glorified garden shed or a $150K ADU that takes half a year to build. There was nothing in between. So our mission became: bring high-quality, move-in ready backyard spaces to market at a price point regular families can actually afford. We're a lean operation, about eight people, selling direct through our website and building a community on Instagram.",
+        "claude-sonnet-4": "Neo Smart Living came out of a really personal frustration. I was working from my dining table in 2022, my partner was on video calls in the bedroom, and we had a perfectly good backyard sitting empty. When I priced out a backyard office, the quotes were insane — $40K to $80K, months of construction, permit nightmares. So we founded Neo Smart Living in 2023 to build the product that should have already existed: a beautifully finished, professionally installed backyard structure that a normal family can afford. We're small — eight people — and we sell direct through our site and Instagram."
+      }
+    },
+    "DQ2_product_overview": {
+      "label": "Product Overview",
+      "question": "Walk me through the Tahoe Mini. What is it physically, how is it delivered and installed, and what makes it different from competitors like sheds, ADUs, or container conversions?",
+      "responses": {
+        "gpt-4.1-mini": "The Tahoe Mini is a 117 square foot prefabricated modular structure. It arrives on a flatbed truck as pre-built wall panels with electrical already wired in, dual-pane glass windows, and full insulation. A professional crew installs it in about one day — you wake up, they arrive, and by dinner you have a finished backyard room. The key differentiator is that at 117 sq ft, it's designed to stay under California's approximately 120 sq ft permit threshold. That means in most jurisdictions, our customers face minimal permitting — sometimes just a simple online form instead of months of architectural plans and inspections.",
+        "gemini-2.5-flash": "The Tahoe Mini is 117 square feet of finished living space that gets delivered and installed in a single day. Physically, it's a steel-framed, insulated modular structure with real dual-pane glass, pre-wired electrical, and high-quality interior finishes. It's not a kit you assemble — our crew brings it on panels and builds it on-site. What really sets us apart is the permit-light angle. At 117 sq ft, we're under California's roughly 120 sq ft threshold for accessory structures, which means most homeowners avoid the full permit process. Compared to an ADU that needs architectural drawings, engineering, and months of inspections, we're dramatically simpler.",
+        "claude-sonnet-4": "Picture a finished room — real walls, real windows, real electrical — that happens to sit in your backyard. That's the Tahoe Mini. It's 117 square feet, which is roughly a 10x12 room. We manufacture it as modular panels in our facility: steel-framed, insulated walls, dual-pane glass, pre-wired electrical outlets and lighting. A truck delivers the panels and our installation crew assembles everything on-site in about 6-8 hours. The magic number is 117 sq ft because California's accessory structure threshold is around 120 — staying under means dramatically simplified permitting in most jurisdictions. Our competitors either go bigger (ADUs, 400+ sq ft, full permits) or cheaper (sheds, no insulation or electrical)."
+      }
+    },
+    "DQ3_target_customer": {
+      "label": "Target Customer",
+      "question": "Who is your ideal customer? Describe the demographics, psychographics, and life situations of the people most likely to buy.",
+      "responses": {
+        "gpt-4.1-mini": "Our sweet spot is Southern California homeowners aged 25 to 54 with household incomes between $75K and $200K. They have backyards but don't feel like they're getting enough value from them. Psychographically, they're people who value intentional living — remote workers who need a real office, wellness enthusiasts wanting a meditation or yoga space, or property-minded homeowners looking to maximize their lot value. They're not DIYers building from scratch, they want something turnkey and professional.",
+        "gemini-2.5-flash": "Our ideal buyer is a SoCal homeowner between 28 and 52, household income in the $80K-$180K range, who feels like their home isn't quite working for them. Maybe they're remote and don't have a proper office, or they have guests sleeping on the couch, or they've been wanting a yoga space. They own their home, they have a backyard, and they have some discretionary income but can't afford a $100K+ renovation. They're practical but they care about aesthetics — they want something that looks good on Instagram, basically. They value convenience and would rather pay for professional installation than spend weekends doing DIY.",
+        "claude-sonnet-4": "Our ideal customer is a 30-to-50-year-old Southern California homeowner with a backyard they're not fully utilizing. Household income is typically $80K to $180K — enough disposable income to invest in their property but not enough to casually spend $100K on an ADU. They're often in a life transition: new remote job, new baby that took over the home office, aging parent visiting more often, or a growing hobby that needs dedicated space. They're digitally savvy, research-driven, and they want social proof — reviews, photos of real installations, real customer stories. They're not impulse buyers; the consideration cycle is typically 2-6 months."
+      }
+    },
+    "DQ4_use_cases": {
+      "label": "Use Cases",
+      "question": "What are the primary use cases you see for the Tahoe Mini? Which use case do you think has the biggest market opportunity and why?",
+      "responses": {
+        "gpt-4.1-mini": "We see five primary use cases: home office for remote workers, guest suite for visitors or Airbnb, wellness studio for yoga or meditation, creative space for artists or content creators, and what we call 'adventure basecamp' for outdoor enthusiasts who need gear storage plus a hangout zone. I think home office has the biggest market opportunity right now because remote work isn't going away and people are desperate for separation between work and home life. But the guest suite angle is interesting too because of the potential rental income offset.",
+        "gemini-2.5-flash": "We consistently see five use cases come up: the home office is number one by volume, then guest accommodations — either for family visits or short-term rentals. Wellness spaces are growing fast, especially yoga and meditation rooms. Creative studios for artists, musicians, and content creators are a passionate niche. And then adventure basecamp — people who want a space connected to their outdoor lifestyle. Honestly, I think the home office has the largest immediate market because of the remote work trend, but the guest suite has interesting long-term economics because people can offset the cost through Airbnb.",
+        "claude-sonnet-4": "The five use cases we see are home office, guest suite, wellness studio, creative space, and adventure basecamp. Home office dominates inquiries — probably 45% of our conversations start there. But here's what's interesting: a lot of customers start with one use case and then realize the space is versatile. Someone who buys it as an office starts using it as a yoga space on weekends. I think the biggest market opportunity is the home office because of the sheer number of remote workers in SoCal, but the guest suite has the strongest financial ROI story — 'pay it off by listing it on Airbnb' is a compelling narrative."
+      }
+    },
+    "DQ5_pricing_value": {
+      "label": "Pricing & Value Proposition",
+      "question": "Your price point is around $23,000 delivered and installed. How did you arrive at this price? How do customers react to it, and what value proposition justifies it?",
+      "responses": {
+        "gpt-4.1-mini": "We landed at approximately $23,000 for the Tahoe Mini delivered and installed. That price includes everything — manufacturing, delivery, and professional installation in one day. We arrived at it by working backward from what a homeowner would pay for a comparable custom build (easily $40K-$60K) and cutting costs through modular manufacturing. Most customers' first reaction is 'that's more than a shed' — which is true — but when they realize it includes professional installation, electrical, insulation, and real windows, they see the value. The comparison isn't Tuff Shed at $5K, it's a contractor quote at $50K.",
+        "gemini-2.5-flash": "Twenty-three thousand dollars delivered and installed. That's the whole thing — no hidden costs, no contractor markups, no permits dragging on for months adding overhead. We modeled it against what custom builders charge and found we could hit roughly 40-50% less by standardizing the design and manufacturing panels at scale. Customer reactions split into two camps: people comparing to Tuff Shed think it's expensive, people comparing to ADUs or custom builds think it's a steal. Our job is to make sure the comparison lands on the right side. The value prop is really time plus quality — one day from delivery to done, with a product that'll last decades, not years.",
+        "claude-sonnet-4": "We price the Tahoe Mini at roughly $23,000, which includes manufacturing, delivery, and full professional installation. No surprises, no change orders. We got there by designing for manufacturing efficiency — standardized panels, optimized materials, and a streamlined installation process that takes one crew one day. Customer price reactions really depend on their frame of reference. If they're comparing to a shed, they have sticker shock. If they've gotten a single contractor quote for anything custom, they're relieved. The value proposition we lean into is: for the price of a used car, you get a permanent, professional-grade addition to your property that increases your usable living space by 117 sq ft in a single day."
+      }
+    },
+    "DQ6_competitive_landscape": {
+      "label": "Competitive Landscape",
+      "question": "Who are your main competitors? How do you differentiate — on price, quality, speed of installation, design, permits, or something else?",
+      "responses": {
+        "gpt-4.1-mini": "Our main competitors fall into four buckets. First, basic sheds like Tuff Shed at $5K-$15K — they're cheap but they look cheap and aren't insulated or wired. Second, full ADU builders at $100K+ who take 3-6 months and require full permits. Third, container conversions at $30K-$60K which have an industrial vibe that doesn't suit most suburban backyards. And fourth, custom builders at $50K+. We differentiate on the intersection of quality, speed, and permit simplicity. Nobody else offers a professionally-built, fully-finished structure installed in one day at this price point.",
+        "gemini-2.5-flash": "There are four competitive categories we track. Big-box sheds like Tuff Shed and Home Depot kits run $5K-$15K but they're uninsulated, unwired, and frankly ugly. ADU companies like Abodu and Villa Homes are beautiful but start at $100K and take months. Shipping container conversions are $30K-$60K with permitting headaches and a very specific aesthetic. And local custom builders are $50K+ with long timelines. Our differentiation is the intersection nobody else occupies: professional quality, one-day installation, permit-light, under $25K. Speed is probably our strongest competitive moat — nothing else goes from purchase to usable space in one day.",
+        "claude-sonnet-4": "We compete across four categories but don't have a direct competitor in our exact niche. Basic sheds ($5K-$15K) are the low end — they solve storage, not living. ADU builders like Abodu ($100K+) are the high end — beautiful but out of reach for most families and they take months. Container conversions ($30K-$60K) have their fans but the industrial aesthetic is polarizing and permits can be tricky. Custom builders ($50K+) offer endless customization but endless timelines too. We carved out a category between shed and ADU that didn't exist before — we call it the 'backyard room' category. Our moat is the combination of quality, speed, and permit simplicity. Nobody else delivers all three."
+      }
+    },
+    "DQ7_barriers_challenges": {
+      "label": "Barriers to Purchase",
+      "question": "What are the biggest barriers to purchase you've observed? HOA restrictions, permit confusion, financing, skepticism about quality? What keeps people from saying yes?",
+      "responses": {
+        "gpt-4.1-mini": "HOA restrictions are probably our biggest barrier — many SoCal communities have HOAs that require approval for any backyard structure, and that process can be unpredictable. Second is permit confusion: even though we're under the threshold, customers hear 'building' and assume they need full permits. Third is financing — we don't have a financing option yet, and $23K is a big check to write. Fourth is what I call the 'shed perception' — people see photos and think it's a fancy shed, which undersells the build quality. We're working on all four, but HOA is the one that's hardest to solve because it varies community by community.",
+        "gemini-2.5-flash": "I'd rank the barriers this way: HOA restrictions are the biggest because they're the hardest for us to control — each HOA has its own rules and approval process. Next is permit confusion, where people assume anything built in a backyard needs full permitting. Then financing — most people don't have $23K in cash lying around and we don't offer payment plans yet. Quality skepticism is real too — until people see the product in person or read reviews, they assume it's a nice shed. And there's a general inertia barrier where people think about backyard upgrades for years without acting. We need to figure out how to shorten that consideration cycle.",
+        "claude-sonnet-4": "The biggest barrier is HOA restrictions — roughly 40% of our leads are in HOA-governed communities, and the approval process ranges from painless to impossible depending on the board. Permit confusion is second: despite being under the threshold, the word 'building' triggers anxiety about permitting. Third is the sticker shock for people anchored to shed prices — we need better comparative messaging. Fourth is financing: $23K in cash is real money, and we don't yet offer installment plans. Finally, there's a general 'do I really need this?' hesitation that we address with lifestyle-focused content showing how transformative the space can be."
+      }
+    },
+    "DQ8_marketing_channels": {
+      "label": "Marketing Channels",
+      "question": "How are you currently reaching customers? What marketing channels work best? Are there channels you haven't tried that you're curious about?",
+      "responses": {
+        "gpt-4.1-mini": "Instagram has been our best channel by far — our product is incredibly visual and the before/after content performs well. We also get organic traffic through Google from people searching 'backyard office' or 'prefab backyard room'. We've done a few home shows and those convert well because people can walk through the actual unit. We're curious about YouTube and TikTok for longer-form content showing the installation process, and we've considered partnering with outdoor or lifestyle brands for co-marketing — like sponsoring trail running events or wellness retreats to reach our target audience in context.",
+        "gemini-2.5-flash": "Instagram is our primary channel and it works because the product photographs beautifully. We post installation time-lapses, customer setups, and lifestyle content. Google organic and ads bring in high-intent traffic — people searching 'backyard office California' or 'prefab home office.' We've done pop-up installations at farmers markets and home shows with good results. I'm really curious about partnering with influencers in the remote work and wellness spaces, and about sponsoring community events — like trail runs or outdoor yoga sessions — where our target customer already is. Pinterest is another channel we haven't tapped yet that feels natural for our product.",
+        "claude-sonnet-4": "Instagram is where we live — the product is so visual that it practically markets itself. Time-lapse installation videos consistently go semi-viral for us. Google search brings in our highest-intent leads: people actively searching 'backyard office Southern California' or 'prefab backyard room.' We've had success at home shows where people can walk through a unit — the in-person experience converts skeptics fast. We haven't explored YouTube or TikTok seriously yet, and I think there's a huge opportunity in outdoor lifestyle partnerships — sponsoring trail races, partnering with yoga instructors, showing up at camping and adventure events. Our brand and our target customers align naturally with those communities."
+      }
+    },
+    "DQ9_brand_perception": {
+      "label": "Brand Perception Goals",
+      "question": "How do you want people to feel about Neo Smart Living as a brand? What emotions or associations should the brand evoke?",
+      "responses": {
+        "gpt-4.1-mini": "We want people to feel that Neo Smart Living represents smart, intentional living. Not luxury, not budget — thoughtful. The emotions should be excitement about possibilities ('imagine what I could do with this space'), trust in quality, and a sense of accessibility — like 'this is actually something I can make happen.' We don't want to be perceived as a shed company or a construction company. We're a lifestyle brand that happens to make physical products.",
+        "gemini-2.5-flash": "We want Neo Smart Living to feel approachable, premium but not pretentious. When someone thinks of our brand, the feeling should be 'these people understand my life and built something that actually solves my problem.' Trust is huge — we want people to feel confident in the build quality and the company behind it. And then aspiration without exclusivity — like, this is a product that makes your life measurably better and you can actually afford it. We're not a luxury brand, we're a smart brand.",
+        "claude-sonnet-4": "I want Neo Smart Living to feel like the brand that 'gets it.' When someone sees our product or our content, they should feel understood — like, 'yes, this is exactly the thing I didn't know I was looking for.' The emotions we're going for are possibility (imagining what they'd do with the space), confidence (trusting the quality and the company), and relief (this is actually achievable, not a fantasy). We want to be the Apple of backyard spaces — not the cheapest, but the one where every detail feels considered and the experience from purchase to installation is seamless."
+      }
+    },
+    "DQ10_research_goals": {
+      "label": "Research Goals",
+      "question": "If this market research study could answer any three questions for you, what would they be? What decisions are riding on the findings?",
+      "responses": {
+        "gpt-4.1-mini": "If this research could answer three things: First, which use case — office, guest suite, wellness, creative, or adventure — has the biggest addressable market among SoCal homeowners? Second, how price-sensitive are our target customers — is $23K a barrier or does it feel like a value compared to alternatives? And third, what messaging most effectively overcomes the 'it's just a shed' perception? The decisions riding on this are our marketing positioning, our go-to-market sequence (which use case to lead with), and whether we need to adjust pricing or offer financing as a priority.",
+        "gemini-2.5-flash": "Three big questions for me: First, which use case should we lead our marketing with — is it home office, guest suite, or something else? We need to know which one has the deepest market. Second, what's the price elasticity? Would more people buy at $19K versus $23K, or is financing the bigger lever than price? Third, how do we crack the HOA-restricted market — do these customers just walk away, or is there a messaging or process solution that could help them navigate approvals? These answers directly shape our 2025 marketing spend, product roadmap, and whether we invest in a financing program.",
+        "claude-sonnet-4": "Three questions I'd love answered: First, rank the use cases by actual market size — not just who's interested, but who's willing to actually spend $23K in the next 12 months. Second, what's the most effective framing for our price point — is it 'cheaper than an ADU,' 'price of a used car,' or 'investment that pays for itself via rental income?' Third, what would it take for someone in an HOA community to pull the trigger — do they need HOA-specific guidance from us, or do they just need to see neighbors who've done it? The business decisions at stake are our 2025 marketing strategy, whether to invest in a financing partnership, and how much resource to put toward HOA education and support."
+      }
+    }
+  },
+  "summary": {
+    "product": "Tahoe Mini — 117 sq ft prefab backyard structure, ~$23K, 1-day install",
+    "target_market": "SoCal homeowners, $75K-$200K income, ages 25-54",
+    "key_use_cases": [
+      "Home office / remote work",
+      "Guest suite / short-term rental",
+      "Wellness studio / meditation space",
+      "Creative space / content creation",
+      "Adventure basecamp / gear storage"
+    ],
+    "top_barriers": [
+      "HOA restrictions",
+      "Permit confusion",
+      "Price perception vs. sheds",
+      "Financing availability",
+      "Build quality skepticism"
+    ],
+    "research_priorities": [
+      "Validate largest addressable use case",
+      "Understand price sensitivity",
+      "Identify messaging to overcome 'just a shed' objection"
+    ]
+  }
+}

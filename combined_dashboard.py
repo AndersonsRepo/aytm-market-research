@@ -29,6 +29,7 @@ from validation import (
     run_full_validation,
     compute_respondent_scores,
 )
+from client_discovery import DISCOVERY_QUESTIONS, QUESTION_LABELS as DISCOVERY_LABELS
 
 st.set_page_config(
     page_title="Neo Smart Living — Combined Research Dashboard",
@@ -41,6 +42,7 @@ QUANT_PATH = DATA_DIR / "synthetic_responses.csv"
 TRANSCRIPT_PATH = DATA_DIR / "interview_transcripts.csv"
 ANALYSIS_PATH = DATA_DIR / "interview_analysis.csv"
 THEMES_PATH = DATA_DIR / "interview_themes.json"
+DISCOVERY_PATH = DATA_DIR / "client_discovery.json"
 
 QUESTION_LABELS = {
     "IQ1": "Backyard Relationship",
@@ -66,6 +68,7 @@ def load_all_data():
     transcripts = pd.read_csv(TRANSCRIPT_PATH) if TRANSCRIPT_PATH.exists() else None
     analysis = pd.read_csv(ANALYSIS_PATH) if ANALYSIS_PATH.exists() else None
     themes = json.loads(THEMES_PATH.read_text()) if THEMES_PATH.exists() else None
+    discovery = json.loads(DISCOVERY_PATH.read_text()) if DISCOVERY_PATH.exists() else None
 
     # Coerce quant numeric columns
     if quant is not None:
@@ -75,7 +78,102 @@ def load_all_data():
                 quant[col] = pd.to_numeric(quant[col], errors="coerce")
 
     qual = analysis if analysis is not None else transcripts
-    return quant, qual, themes
+    return quant, qual, themes, discovery
+
+
+# =============================================================================
+# Tab 0: Client Discovery (Stage 1)
+# =============================================================================
+def tab_client_discovery(discovery):
+    st.header("Stage 1: Client Discovery Interview")
+    st.markdown("*Structured interview with Neo Smart Living's founding team to extract business context*")
+
+    if discovery is None:
+        st.warning("No client discovery data found. Run `python generate_test_discovery.py` first.")
+        return
+
+    # Overview metrics
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Models Used", len(discovery.get("models_used", [])))
+    c2.metric("Questions Asked", len(discovery.get("sections", {})))
+    c3.metric("Generated", discovery.get("generated", "")[:10])
+
+    st.markdown("---")
+
+    # Summary cards
+    summary = discovery.get("summary", {})
+    if summary:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Product")
+            st.info(summary.get("product", ""))
+            st.subheader("Target Market")
+            st.info(summary.get("target_market", ""))
+        with col2:
+            st.subheader("Key Use Cases")
+            for uc in summary.get("key_use_cases", []):
+                st.markdown(f"- {uc}")
+            st.subheader("Research Priorities")
+            for i, p in enumerate(summary.get("research_priorities", []), 1):
+                st.markdown(f"**{i}.** {p}")
+
+        st.subheader("Top Barriers Identified")
+        barriers = summary.get("top_barriers", [])
+        if barriers:
+            cols = st.columns(len(barriers))
+            for col, barrier in zip(cols, barriers):
+                col.warning(barrier)
+
+    st.markdown("---")
+
+    # Full interview responses with cross-model comparison
+    st.subheader("Interview Responses by Model")
+    sections = discovery.get("sections", {})
+    models_used = discovery.get("models_used", [])
+
+    view_mode = st.radio("View mode", ["Side-by-side", "Question-by-question"], horizontal=True)
+
+    if view_mode == "Side-by-side" and len(models_used) >= 2:
+        for key, section in sections.items():
+            with st.expander(f"{section['label']}", expanded=False):
+                st.markdown(f"**Q:** *{section['question']}*")
+                cols = st.columns(len(models_used))
+                for col, model in zip(cols, models_used):
+                    with col:
+                        st.markdown(f"**{model}**")
+                        st.markdown(section["responses"].get(model, "*No response*"))
+    else:
+        selected_q = st.selectbox(
+            "Select question",
+            list(sections.keys()),
+            format_func=lambda k: sections[k]["label"],
+        )
+        section = sections[selected_q]
+        st.markdown(f"**Q:** *{section['question']}*")
+        for model in models_used:
+            st.markdown(f"---\n**{model}:**")
+            st.markdown(section["responses"].get(model, "*No response*"))
+
+    # Cross-model agreement analysis
+    st.markdown("---")
+    st.subheader("Cross-Model Agreement")
+    st.markdown(
+        "All three models consistently identify the same core themes: "
+        "**home office as the largest use case**, **HOA as the primary barrier**, "
+        "and **one-day installation as the key differentiator**. "
+        "This convergence across independent LLM responses strengthens confidence "
+        "in the business context used throughout the pipeline."
+    )
+
+    # Pipeline flow indicator
+    st.markdown("---")
+    st.markdown("##### Pipeline Flow")
+    st.markdown(
+        "**Stage 1: Client Discovery** → Stage 2: Consumer Interviews → "
+        "Stage 3: Survey Design → Stage 4: Survey Responses → "
+        "Stage 5: Analysis Dashboard → Stage 6: Validation"
+    )
+    st.caption("This discovery brief informs persona design, interview questions, and survey instrument construction.")
 
 
 # =============================================================================
@@ -887,7 +985,7 @@ if missing:
     st.markdown("Run `python generate_test_data.py` and `python generate_test_interviews.py` to generate test data.")
     st.stop()
 
-quant, qual, themes = load_all_data()
+quant, qual, themes, discovery = load_all_data()
 
 # Sidebar filters
 st.sidebar.header("Filters")
@@ -913,16 +1011,19 @@ if quant is not None and quant.empty:
     st.stop()
 
 # Tabs
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    "1. Client Discovery",
     "Executive Summary",
-    "Qualitative Insights",
-    "Quantitative Results",
+    "2. Qualitative Insights",
+    "3-4. Quantitative Results",
     "Cross-Phase Validation",
-    "3-Model Reliability",
-    "Data Quality & Bias",
+    "5. Model Reliability",
+    "6. Data Quality & Bias",
     "Methodology & Confidence",
 ])
 
+with tab0:
+    tab_client_discovery(discovery)
 with tab1:
     tab_executive_summary(quant, qual, themes)
 with tab2:

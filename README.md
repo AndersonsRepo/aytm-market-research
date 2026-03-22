@@ -59,22 +59,26 @@ export OPENROUTER_API_KEY=sk-or-your-key-here
 cp .env.example .env
 # Edit .env with your key
 
-# Generate synthetic interviews (Phase 1)
-python synthetic_interviews.py       # 30 interviews via 2 LLMs
+# Stage 1: Client Discovery Interview
+python client_discovery.py           # Simulated founder interview via 3 LLMs
+
+# Stage 2: Qualitative Consumer Interviews
+python synthetic_interviews.py       # 30 interviews via 3 LLMs
 python interview_analysis.py         # Sentiment + themes + emotion analysis
 
-# Generate synthetic survey responses (Phase 2)
-python synthetic_respondents.py      # 60 survey responses via 2 LLMs
+# Stages 3-4: Survey Design + Quantitative Responses
+python synthetic_respondents.py      # 90 survey responses via 3 LLMs
 
-# View results
-streamlit run interview_dashboard.py
-streamlit run dashboard.py
-python report.py
+# Stages 5-6: Analysis + Validation
+streamlit run combined_dashboard.py  # Full 8-tab combined dashboard
+python validation.py                 # CLI validation report
+python report.py                     # Static CSV + PNG report
 ```
 
 Or generate test data offline (realistic but not API-generated):
 
 ```bash
+python generate_test_discovery.py    # Simulated client discovery data
 python generate_test_interviews.py   # Simulated interview data
 python generate_test_data.py         # Simulated survey data
 ```
@@ -84,23 +88,26 @@ python generate_test_data.py         # Simulated survey data
 ## Pipeline Architecture
 
 ```
-Phase 1: Qualitative (Interviews)          Phase 2: Quantitative (Survey)
-+---------------------------------+       +---------------------------------+
-|  interview_personas.py          |       |  segments.py                    |
-|  (30 diverse personas)          |       |  (5 market segments)            |
-|           |                     |       |           |                     |
-|           v                     |       |           v                     |
-|  synthetic_interviews.py        |       |  synthetic_respondents.py       |
-|  (30 depth interviews via LLM)  | --->  |  (60 survey responses via LLM)  |
-|           |                     |informs|           |                     |
-|           v                     |       |           v                     |
-|  interview_analysis.py          |       |  analytics.py (shared module)   |
-|  (sentiment + themes + emotion) |       |       |              |          |
-|           |                     |       |       v              v          |
-|           v                     |       |  report.py     dashboard.py    |
-|  interview_dashboard.py         |       |  (static)      (Streamlit)     |
-|  (6-tab Streamlit dashboard)    |       |                                 |
-+---------------------------------+       +---------------------------------+
+Stage 1: Client Discovery        Stage 2: Consumer Interviews       Stages 3-4: Survey Design + Responses
++---------------------------+    +-------------------------------+  +-----------------------------------+
+|  client_discovery.py      |    |  interview_personas.py        |  |  segments.py                      |
+|  (founder interview, 3    |--->|  (30 diverse personas)        |  |  (5 market segments)              |
+|   LLMs, business brief)   |    |           |                   |  |           |                       |
++---------------------------+    |           v                   |  |           v                       |
+                                 |  synthetic_interviews.py      |  |  synthetic_respondents.py         |
+                                 |  (30 depth interviews, 3 LLMs)|-→|  (90 survey responses, 3 LLMs)    |
+                                 |           |                   |  |           |                       |
+                                 |           v                   |  |           v                       |
+                                 |  interview_analysis.py        |  |  analytics.py + validation.py     |
+                                 |  (sentiment + themes + emotion)|  |  (stats, bias, CIs, KS tests)    |
+                                 +-------------------------------+  +-----------------------------------+
+                                              |                                    |
+                                              v                                    v
+                                 +----------------------------------------------------------+
+                                 |  Stages 5-6: combined_dashboard.py (8-tab Streamlit)     |
+                                 |  Client Discovery | Exec Summary | Qual | Quant |       |
+                                 |  Cross-Validation | Model Reliability | Bias | Methods  |
+                                 +----------------------------------------------------------+
 ```
 
 ---
@@ -115,7 +122,14 @@ Phase 1: Qualitative (Interviews)          Phase 2: Quantitative (Survey)
 | `segments.py` | 5 market segments (Remote Professional, Active Adventurer, Wellness Seeker, Property Maximizer, Budget-Conscious DIYer) with psychographic narratives |
 | `Input/Neo Smart Living - Survey_HighMedPriority.md` | The survey questionnaire (~35 items) that synthetic respondents complete |
 
-### Phase 1: Interview Pipeline
+### Stage 1: Client Discovery
+
+| File | What It Does | API Calls |
+|---|---|---|
+| `client_discovery.py` | Simulates a structured interview with Neo Smart Living's founding team across 3 LLMs to extract business context, competitive positioning, and research goals | 3 |
+| `generate_test_discovery.py` | Creates realistic test discovery data without API calls (for development) | 0 |
+
+### Stage 2: Interview Pipeline
 
 | File | What It Does | API Calls |
 |---|---|---|
@@ -136,15 +150,17 @@ Phase 1: Qualitative (Interviews)          Phase 2: Quantitative (Survey)
 
 ---
 
-## Why Two LLMs?
+## Why Three LLMs?
 
-The prototype uses **GPT-4.1-mini** and **Gemini 2.5 Flash** to generate the same types of responses. This is a cross-model reliability check:
+The pipeline uses **GPT-4.1-mini**, **Gemini 2.5 Flash**, and **Claude Sonnet 4** (via OpenRouter) to generate the same types of responses. This is a cross-model reliability check:
 
-- If both models produce similar results on a variable, that finding is more trustworthy
-- If models diverge significantly (Mann-Whitney U, p < 0.05), the finding should be flagged as uncertain
-- The dashboards include a **Model Comparison** tab that highlights where models agree and disagree
+- If all three models produce similar results, that finding is robust
+- Pairwise divergence is tested with Mann-Whitney U; omnibus comparison with Kruskal-Wallis H
+- Distribution shape is tested with two-sample Kolmogorov-Smirnov tests
+- Bootstrap confidence intervals quantify uncertainty around key metrics
+- The dashboard's **Model Reliability** tab highlights where models agree and disagree
 
-This dual-LLM design is based on the STAMP methodology (Lin, under review) — see the challenge document for details.
+This multi-LLM triangulation is based on the STAMP methodology (Lin, under review) — see the challenge document for details.
 
 ---
 
@@ -181,18 +197,22 @@ This dual-LLM design is based on the STAMP methodology (Lin, under review) — s
 
 The challenge document describes 6 stages. Here's how they map to this code:
 
-| Challenge Stage | Relevant Code | What To Improve |
+| Challenge Stage | Relevant Code | Status |
 |---|---|---|
-| Stage 1: Research Problem Definition | `segments.py`, `interview_personas.py` | Add more personas, different persona generation strategies, better demographic diversity |
-| Stage 2: Qualitative Interview Simulation | `synthetic_interviews.py`, `interview_analysis.py` | Multi-turn conversations (follow-up probes), better emotion analysis, interview-to-segment linkage |
-| Stage 3: Survey Design & Pre-Testing | `Input/Neo Smart Living - Survey_HighMedPriority.md` | Instrument refinement, redundancy analysis, adaptive questioning |
-| Stage 4: Quantitative Response Simulation | `synthetic_respondents.py` | Larger samples, more models, consistency tracking (run 3x per persona), response validation |
-| Stage 5: Data Analysis | `analytics.py`, `report.py`, `interview_analysis.py` | Better cross-model comparison, cluster analysis, qual-quant linkage, real data benchmarking |
-| Stage 6: Insights Presentation & Dashboard | `dashboard.py`, `interview_dashboard.py` | Combined qual+quant dashboard, confidence calibration, automated insight generation |
+| Stage 1: Client Discovery Interview | `client_discovery.py`, `generate_test_discovery.py` | **Complete** — 3-model triangulated founder interview with business brief synthesis |
+| Stage 2: Qualitative Interview Simulation | `synthetic_interviews.py`, `multi_turn_interviews.py`, `interview_analysis.py` | **Complete** — 30 personas, 8 core + 8 adaptive follow-up questions, sentiment/emotion/LDA analysis |
+| Stage 3: Survey Design & Pre-Testing | `Input/Neo Smart Living - Survey_HighMedPriority.md` | **Complete** — 35-item instrument derived from client discovery and interview themes |
+| Stage 4: Quantitative Response Simulation | `synthetic_respondents.py` | **Complete** — 90 responses (5 segments × 6 respondents × 3 models), attention checks, demographic forcing |
+| Stage 5: Data Analysis | `analytics.py`, `validation.py`, `report.py` | **Complete** — Mann-Whitney U, Kruskal-Wallis H, KS tests, bootstrap CIs, bias detection, quality scoring |
+| Stage 6: Insights Presentation & Dashboard | `combined_dashboard.py` | **Complete** — 8-tab unified dashboard with cross-phase validation and methodology documentation |
 
 ---
 
 ## Output Data Schema
+
+### Client Discovery Brief (`output/client_discovery.json`)
+
+JSON with keys: `title`, `models_used`, `sections` (10 discovery questions with per-model responses), `summary` (product, target market, use cases, barriers, research priorities).
 
 ### Interview Transcripts (`output/interview_transcripts.csv`)
 
