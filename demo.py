@@ -95,7 +95,17 @@ def generate_test_data():
         interview_stats = generate_all_test_data()
     done(f"{interview_stats['n_interviews']} interviews, {interview_stats['n_themes']} themes")
 
-    stage_banner("3-4", "Survey Design + Responses", "90 survey responses across 5 segments × 3 models")
+    stage_banner(3, "Survey Design", "AI-generated instrument from interview themes")
+    step("Generating survey instrument...")
+    with contextlib.redirect_stdout(io.StringIO()):
+        from generate_test_survey_design import generate_test_survey_design
+        instrument = generate_test_survey_design()
+    from survey_design import OUTPUT_PATH as SD_PATH
+    SD_PATH.write_text(json.dumps(instrument, indent=2, ensure_ascii=False))
+    avg_qs = sum(d.get("total_questions", 0) for d in instrument["designs"].values()) // len(instrument["designs"])
+    done(f"{avg_qs} avg questions, {len(instrument['designs'])} model designs")
+
+    stage_banner(4, "Survey Responses", "90 survey responses across 5 segments × 3 models")
     step("Generating synthetic survey responses...")
     with contextlib.redirect_stdout(io.StringIO()):
         from generate_test_data import generate_test_data as gen_survey

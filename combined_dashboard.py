@@ -30,6 +30,7 @@ from validation import (
     compute_respondent_scores,
 )
 from client_discovery import DISCOVERY_QUESTIONS, QUESTION_LABELS as DISCOVERY_LABELS
+from survey_design import QUESTION_TYPES
 
 st.set_page_config(
     page_title="Neo Smart Living — Combined Research Dashboard",
@@ -43,6 +44,7 @@ TRANSCRIPT_PATH = DATA_DIR / "interview_transcripts.csv"
 ANALYSIS_PATH = DATA_DIR / "interview_analysis.csv"
 THEMES_PATH = DATA_DIR / "interview_themes.json"
 DISCOVERY_PATH = DATA_DIR / "client_discovery.json"
+SURVEY_DESIGN_PATH = DATA_DIR / "survey_design.json"
 
 QUESTION_LABELS = {
     "IQ1": "Backyard Relationship",
@@ -69,6 +71,7 @@ def load_all_data():
     analysis = pd.read_csv(ANALYSIS_PATH) if ANALYSIS_PATH.exists() else None
     themes = json.loads(THEMES_PATH.read_text()) if THEMES_PATH.exists() else None
     discovery = json.loads(DISCOVERY_PATH.read_text()) if DISCOVERY_PATH.exists() else None
+    survey_design = json.loads(SURVEY_DESIGN_PATH.read_text()) if SURVEY_DESIGN_PATH.exists() else None
 
     # Coerce quant numeric columns
     if quant is not None:
@@ -78,7 +81,7 @@ def load_all_data():
                 quant[col] = pd.to_numeric(quant[col], errors="coerce")
 
     qual = analysis if analysis is not None else transcripts
-    return quant, qual, themes, discovery
+    return quant, qual, themes, discovery, survey_design
 
 
 # =============================================================================
@@ -381,6 +384,122 @@ def tab_qualitative(qual, themes):
                 st.markdown(f"> *Interviewer follow-up:* {row[fu_q]}")
                 if fu_r in row and pd.notna(row.get(fu_r)):
                     st.markdown(f"> **Response:** {row[fu_r]}")
+
+
+# =============================================================================
+# Tab 2.5: AI-Assisted Survey Design (Stage 3)
+# =============================================================================
+def tab_survey_design(survey_design):
+    st.header("Stage 3: AI-Assisted Survey Design")
+    st.markdown("*Survey instrument generated from interview themes and client discovery insights*")
+
+    if survey_design is None:
+        st.warning("No survey design data found. Run `python generate_test_survey_design.py` first.")
+        return
+
+    models_used = survey_design.get("models_used", [])
+    designs = survey_design.get("designs", {})
+
+    # Overview metrics
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Models Used", len(models_used))
+    total_qs = [d.get("total_questions", 0) for d in designs.values()]
+    c2.metric("Avg Questions", f"{sum(total_qs) / len(total_qs):.0f}" if total_qs else "0")
+    all_sections = set()
+    for d in designs.values():
+        for s in d.get("sections", []):
+            all_sections.add(s.get("label", s.get("id", "")))
+    c3.metric("Unique Sections", len(all_sections))
+    c4.metric("Shared Sections", len([
+        sid for sid, info in survey_design.get("section_coverage", {}).items()
+        if len(info.get("models_including", [])) == len(models_used)
+    ]))
+
+    st.markdown("---")
+
+    # Methodology note
+    st.info(survey_design.get("methodology", ""))
+
+    # Cross-model section coverage
+    st.subheader("Cross-Model Section Coverage")
+    coverage = survey_design.get("section_coverage", {})
+    if coverage:
+        cov_data = []
+        for sid, info in coverage.items():
+            n_models = len(info.get("models_including", []))
+            cov_data.append({
+                "Section": info.get("label", sid),
+                "Models": n_models,
+                "Coverage": "All 3" if n_models == 3 else f"{n_models}/3",
+                "GPT": "✓" if "gpt-4.1-mini" in info.get("models_including", []) else "",
+                "Gemini": "✓" if "gemini-2.5-flash" in info.get("models_including", []) else "",
+                "Claude": "✓" if "claude-sonnet-4" in info.get("models_including", []) else "",
+            })
+        cov_df = pd.DataFrame(cov_data)
+        st.dataframe(cov_df, use_container_width=True, hide_index=True)
+
+        # Highlight unique sections
+        unique = [c for c in cov_data if c["Models"] < len(models_used)]
+        if unique:
+            st.markdown("**Model-specific sections** (suggested by only 1-2 models):")
+            for u in unique:
+                contributing = [m for m in models_used if m in
+                               coverage.get(next(
+                                   (sid for sid, info in coverage.items()
+                                    if info.get("label") == u["Section"]), ""),
+                                   {}).get("models_including", [])]
+                st.markdown(f"- **{u['Section']}** — suggested by {', '.join(contributing) or 'unknown'}")
+
+    # Per-model instrument view
+    st.subheader("Survey Instrument by Model")
+    selected_model = st.selectbox("Select model", models_used, key="survey_model")
+    design = designs.get(selected_model, {})
+
+    if design:
+        st.markdown(f"**{design.get('title', '')}** — {design.get('total_questions', '?')} questions, "
+                   f"~{design.get('estimated_duration_minutes', '?')} min")
+
+        for section in design.get("sections", []):
+            with st.expander(f"{section.get('label', '?')} ({len(section.get('questions', []))} questions)",
+                            expanded=False):
+                st.caption(f"Purpose: {section.get('purpose', '')}")
+                for q in section.get("questions", []):
+                    q_type = QUESTION_TYPES.get(q.get("type", ""), q.get("type", ""))
+                    st.markdown(f"**{q.get('id', '?')}.** {q.get('text', '')}")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.caption(f"Type: {q_type}")
+                        if q.get("options"):
+                            st.caption(f"Options: {', '.join(q['options'][:5])}{'...' if len(q.get('options', [])) > 5 else ''}")
+                    with col2:
+                        st.caption(f"Theme: {q.get('source_theme', 'N/A')}")
+                        st.caption(f"RQ: {q.get('research_objective', 'N/A')}")
+                    st.markdown("---")
+
+    # Question-to-theme traceability
+    st.subheader("Question-to-Theme Traceability")
+    st.markdown("Every survey question traces back to a qualitative finding:")
+    trace_data = []
+    for section in design.get("sections", []):
+        for q in section.get("questions", []):
+            trace_data.append({
+                "Question": q.get("id", ""),
+                "Text": q.get("text", "")[:60] + "...",
+                "Source Theme": q.get("source_theme", "N/A")[:50],
+                "Research Objective": q.get("research_objective", "N/A"),
+            })
+    if trace_data:
+        st.dataframe(pd.DataFrame(trace_data), use_container_width=True, hide_index=True)
+
+    # Pipeline flow
+    st.markdown("---")
+    st.markdown("##### Pipeline Flow")
+    st.markdown(
+        "Stage 1: Client Discovery → Stage 2: Consumer Interviews → "
+        "**Stage 3: Survey Design** → Stage 4: Survey Responses → "
+        "Stage 5: Analysis Dashboard → Stage 6: Validation"
+    )
+    st.caption("Interview themes and discovery insights directly inform which questions appear in the survey.")
 
 
 # =============================================================================
@@ -1008,14 +1127,14 @@ if missing:
     st.markdown("Run `python generate_test_data.py` and `python generate_test_interviews.py` to generate test data.")
     st.stop()
 
-quant, qual, themes, discovery = load_all_data()
+quant, qual, themes, discovery, survey_design = load_all_data()
 
 # Sidebar — pipeline info
 st.sidebar.markdown("### Pipeline Stages")
 st.sidebar.markdown(
     "1. Client Discovery " + ("✅" if discovery else "⬜") + "\n"
     "2. Consumer Interviews " + ("✅" if qual is not None else "⬜") + "\n"
-    "3. Survey Design ✅\n"
+    "3. Survey Design " + ("✅" if survey_design else "⬜") + "\n"
     "4. Survey Responses " + ("✅" if quant is not None else "⬜") + "\n"
     "5. Analysis Dashboard ✅\n"
     "6. Validation ✅"
@@ -1052,15 +1171,16 @@ if quant is not None and quant.empty:
     st.stop()
 
 # Tabs
-tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab0, tab1, tab2, tab2b, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "1. Client Discovery",
     "Executive Summary",
-    "2. Qualitative Insights",
-    "3-4. Quantitative Results",
+    "2. Consumer Interviews",
+    "3. Survey Design",
+    "4. Survey Results",
     "Cross-Phase Validation",
     "5. Model Reliability",
     "6. Data Quality & Bias",
-    "Methodology & Confidence",
+    "Methodology",
 ])
 
 with tab0:
@@ -1069,6 +1189,8 @@ with tab1:
     tab_executive_summary(quant, qual, themes)
 with tab2:
     tab_qualitative(qual, themes)
+with tab2b:
+    tab_survey_design(survey_design)
 with tab3:
     tab_quantitative(quant)
 with tab4:
