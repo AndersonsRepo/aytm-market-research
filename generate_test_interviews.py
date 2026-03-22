@@ -754,5 +754,18 @@ def main():
         print(f"  {q}: {df[f'sentiment_{q}'].mean():.3f}")
 
 
+def generate_all_test_data():
+    """Generate all test interview data and return stats dict (for demo.py)."""
+    main()
+    import pandas as pd
+    df = pd.read_csv(OUTPUT_DIR / "interview_analysis.csv")
+    themes = json.loads((OUTPUT_DIR / "interview_themes.json").read_text())
+    return {
+        "n_interviews": len(df),
+        "n_themes": len(themes.get("llm_themes", [])),
+        "models": sorted(df["model"].unique().tolist()),
+    }
+
+
 if __name__ == "__main__":
     main()

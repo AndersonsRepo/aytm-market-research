@@ -269,5 +269,10 @@ def main():
     print(f"\nQ1 mean by model:\n{df.groupby('model')['Q1'].mean().round(2).to_string()}")
 
 
+def generate_test_data():
+    """Generate all test survey data (for demo.py)."""
+    main()
+
+
 if __name__ == "__main__":
     main()

@@ -970,8 +970,12 @@ def tab_data_quality(quant):
 # =============================================================================
 # Main App
 # =============================================================================
-st.title("Neo Smart Living -- Combined Research Dashboard")
-st.markdown("*Qualitative + Quantitative Market Research with 3-Model Triangulation & Bias Detection*")
+st.title("Neo Smart Living — Simulated Market Research")
+st.markdown(
+    "*End-to-end pipeline: Client Discovery → Consumer Interviews → Survey Design → "
+    "Survey Responses → Analysis → Validation*  \n"
+    "*3-Model Triangulation: GPT-4.1-mini · Gemini 2.5 Flash · Claude Sonnet 4*"
+)
 
 # Check for data
 missing = []
@@ -987,7 +991,25 @@ if missing:
 
 quant, qual, themes, discovery = load_all_data()
 
-# Sidebar filters
+# Sidebar — pipeline info
+st.sidebar.markdown("### Pipeline Stages")
+st.sidebar.markdown(
+    "1. Client Discovery " + ("✅" if discovery else "⬜") + "\n"
+    "2. Consumer Interviews " + ("✅" if qual is not None else "⬜") + "\n"
+    "3. Survey Design ✅\n"
+    "4. Survey Responses " + ("✅" if quant is not None else "⬜") + "\n"
+    "5. Analysis Dashboard ✅\n"
+    "6. Validation ✅"
+)
+st.sidebar.markdown(
+    f"**Models:** GPT-4.1-mini, Gemini 2.5 Flash, Claude Sonnet 4"
+)
+st.sidebar.markdown("**Cost:** ~$0.10 full pipeline via OpenRouter")
+st.sidebar.markdown(
+    "**Traditional equivalent:** $6K–$48K"
+)
+st.sidebar.markdown("---")
+
 st.sidebar.header("Filters")
 if quant is not None:
     all_models = sorted(set(
