@@ -688,8 +688,8 @@ function ValidationResults({ runId }: { runId: string }) {
   );
 }
 
-// Stage 6 has a dedicated detail view with Recharts
-const STAGES_WITH_DETAIL_VIEW = new Set([6]);
+// Stages with dedicated Recharts detail views
+const STAGES_WITH_DETAIL_VIEW = new Set([2, 4, 6]);
 
 // ─── Main StageCard ─────────────────────────────────────────────────────────
 

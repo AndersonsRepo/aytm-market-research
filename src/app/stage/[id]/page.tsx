@@ -2,6 +2,8 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Stage2Interviews } from "@/components/pipeline/stages/Stage2Interviews";
+import { Stage4Responses } from "@/components/pipeline/stages/Stage4Responses";
 import { Stage6Validation } from "@/components/pipeline/stages/Stage6Validation";
 
 const STAGE_META: Record<number, { name: string; description: string }> = {
@@ -31,8 +33,10 @@ export default function StageDetailPage() {
     );
   }
 
-  // Map stage ID to component — extend as more stages are built
+  // Map stage ID to component
   const stageComponents: Record<number, React.ReactNode> = {
+    2: <Stage2Interviews runId={runId} />,
+    4: <Stage4Responses runId={runId} />,
     6: <Stage6Validation runId={runId} />,
   };
 
