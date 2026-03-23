@@ -21,6 +21,12 @@ This prototype replaces both phases with LLM-generated "synthetic respondents" â
 
 ---
 
+## Live Demo
+
+**[aytm-pipeline.vercel.app](https://aytm-pipeline.vercel.app)** â€” Click "Load Demo Data" to explore the full 6-stage pipeline with interactive Recharts visualizations. No setup required.
+
+---
+
 ## Quick Start (No API Key Needed)
 
 The prototype includes pre-generated sample data so you can explore the dashboards immediately:
