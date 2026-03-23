@@ -10,3 +10,7 @@ node_modules/
 __pycache__/
 .venv/
 *.pyc
+
+# Build artifacts
+tsconfig.tsbuildinfo
+supabase/.temp/
