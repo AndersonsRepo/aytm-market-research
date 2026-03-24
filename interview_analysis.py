@@ -36,6 +36,7 @@ MAX_WORKERS = 10
 MAX_RETRIES = 3
 
 QUESTION_KEYS = ["IQ1", "IQ2", "IQ3", "IQ4", "IQ5", "IQ6", "IQ7", "IQ8"]
+FOLLOWUP_RESPONSE_KEYS = [f"{q}_followup_response" for q in QUESTION_KEYS]
 EMOTION_TAXONOMY = ["excitement", "skepticism", "anxiety", "curiosity", "indifference", "aspiration", "frustration", "pragmatism"]
 
 
@@ -112,7 +113,7 @@ def parse_json_response(raw_text):
 # --- Layer 1: VADER Sentiment ---
 
 def run_sentiment(df):
-    """Add VADER sentiment scores per question and overall."""
+    """Add VADER sentiment scores per question (core + follow-ups) and overall."""
     sia = SentimentIntensityAnalyzer()
 
     for q in QUESTION_KEYS:
@@ -120,8 +121,25 @@ def run_sentiment(df):
             lambda text: sia.polarity_scores(str(text))["compound"] if pd.notna(text) else 0.0
         )
 
+    # Score follow-up responses if present (multi-turn mode)
+    has_followups = any(col in df.columns for col in FOLLOWUP_RESPONSE_KEYS)
+    if has_followups:
+        for q in QUESTION_KEYS:
+            fu_col = f"{q}_followup_response"
+            if fu_col in df.columns:
+                df[f"sentiment_{q}_followup"] = df[fu_col].apply(
+                    lambda text: sia.polarity_scores(str(text))["compound"] if pd.notna(text) and str(text).strip() else 0.0
+                )
+        print(f"  Follow-up sentiment scores added for {sum(1 for q in QUESTION_KEYS if f'{q}_followup_response' in df.columns)} questions")
+
     sentiment_cols = [f"sentiment_{q}" for q in QUESTION_KEYS]
     df["sentiment_overall"] = df[sentiment_cols].mean(axis=1).round(4)
+
+    # Combined sentiment: average of core + follow-up scores for richer signal
+    if has_followups:
+        all_sent_cols = sentiment_cols + [f"sentiment_{q}_followup" for q in QUESTION_KEYS if f"sentiment_{q}_followup" in df.columns]
+        df["sentiment_combined"] = df[all_sent_cols].mean(axis=1).round(4)
+
     df["sentiment_label"] = df["sentiment_overall"].apply(
         lambda x: "Positive" if x > 0.05 else ("Negative" if x < -0.05 else "Neutral")
     )
@@ -138,10 +156,15 @@ def run_lda(df):
     extra_stops = {"would", "could", "also", "like", "really", "think", "want", "need", "get", "one", "much", "even", "well", "lot"}
     stop_words.update(extra_stops)
 
-    # Concatenate all answers per respondent
+    # Concatenate all answers per respondent (core + follow-up responses)
+    all_text_keys = QUESTION_KEYS[:]
+    for q in QUESTION_KEYS:
+        fu_col = f"{q}_followup_response"
+        if fu_col in df.columns:
+            all_text_keys.append(fu_col)
     docs = []
     for _, row in df.iterrows():
-        text = " ".join(str(row[q]) for q in QUESTION_KEYS if pd.notna(row[q]))
+        text = " ".join(str(row[q]) for q in all_text_keys if q in row and pd.notna(row[q]))
         tokens = word_tokenize(text.lower())
         tokens = [stemmer.stem(t) for t in tokens if t.isalpha() and t not in stop_words and len(t) > 2]
         docs.append(tokens)
@@ -183,13 +206,21 @@ def run_lda(df):
 
 def run_llm_themes(api_key, df):
     """Extract themes from all transcripts with a single LLM call."""
-    # Build transcript summaries
+    # Build transcript summaries (include follow-up exchanges for richer themes)
     transcript_block = ""
     for _, row in df.iterrows():
         transcript_block += f"\n--- {row['persona_id']} ({row['persona_name']}) ---\n"
-        for q in QUESTION_KEYS + ["additional_thoughts"]:
+        for q in QUESTION_KEYS:
             if pd.notna(row.get(q)):
                 transcript_block += f"{q}: {row[q]}\n"
+                fu_q = f"{q}_followup_question"
+                fu_r = f"{q}_followup_response"
+                if fu_q in row and pd.notna(row.get(fu_q)) and str(row[fu_q]).strip():
+                    transcript_block += f"  Follow-up: {row[fu_q]}\n"
+                    if fu_r in row and pd.notna(row.get(fu_r)):
+                        transcript_block += f"  Response: {row[fu_r]}\n"
+        if pd.notna(row.get("additional_thoughts")):
+            transcript_block += f"additional_thoughts: {row['additional_thoughts']}\n"
 
     system = """You are an expert qualitative researcher analyzing depth interview transcripts about homeowner backyard needs and interest in a prefabricated backyard structure (the Tahoe Mini).
 
@@ -224,9 +255,13 @@ Identify 4-6 themes and 4-6 segments. Base segments on observed patterns, not pr
 # --- Layer 3: Emotional Tone ---
 
 def classify_emotion(api_key, row):
-    """Classify emotional tone for one respondent based on IQ6 + IQ7."""
+    """Classify emotional tone for one respondent based on IQ6 + IQ7 (and follow-ups if available)."""
     iq6 = str(row.get("IQ6", ""))
     iq7 = str(row.get("IQ7", ""))
+
+    # Include follow-up responses for richer emotional signal
+    iq6_fu = str(row.get("IQ6_followup_response", "")) if pd.notna(row.get("IQ6_followup_response")) else ""
+    iq7_fu = str(row.get("IQ7_followup_response", "")) if pd.notna(row.get("IQ7_followup_response")) else ""
 
     system = f"""You are a qualitative research analyst classifying emotional tone in interview responses.
 
@@ -240,11 +275,17 @@ Return ONLY a JSON object with:
 - "intensity": integer 1-5 (1=subtle, 5=very strong)
 - "reasoning": 1-2 sentences explaining your classification"""
 
+    followup_section = ""
+    if iq6_fu:
+        followup_section += f"\nIQ6 Follow-up response: {iq6_fu}"
+    if iq7_fu:
+        followup_section += f"\nIQ7 Follow-up response: {iq7_fu}"
+
     user = f"""Respondent {row['persona_id']} ({row['persona_name']}):
 
 IQ6 (Product reaction): {iq6}
 
-IQ7 (Barriers & drivers): {iq7}
+IQ7 (Barriers & drivers): {iq7}{followup_section}
 
 Classify the emotional tone."""
 

@@ -192,3 +192,96 @@ def segment_profiles(df):
     prof = df.groupby("segment_name")[key_vars].mean().round(3)
     prof.columns = [LIKERT_KEYS.get(c, c) for c in key_vars]
     return prof
+
+
+# ── Bootstrap Confidence Intervals ──────────────────────────────────────────
+
+def bootstrap_ci(data, n_bootstrap=2000, ci=0.95, statistic=None):
+    """Compute bootstrap confidence interval for a statistic.
+
+    Args:
+        data: 1-D array of values
+        n_bootstrap: number of resamples
+        ci: confidence level (default 0.95)
+        statistic: callable (default np.mean)
+
+    Returns:
+        dict with point_estimate, ci_lower, ci_upper, ci_width
+    """
+    if statistic is None:
+        statistic = np.mean
+    data = np.asarray(data, dtype=float)
+    data = data[~np.isnan(data)]
+    if len(data) < 3:
+        val = float(statistic(data)) if len(data) > 0 else np.nan
+        return {"point_estimate": round(val, 4), "ci_lower": np.nan, "ci_upper": np.nan, "ci_width": np.nan}
+    rng = np.random.default_rng(42)
+    boot = np.array([statistic(rng.choice(data, size=len(data), replace=True)) for _ in range(n_bootstrap)])
+    alpha = (1 - ci) / 2
+    lo, hi = np.percentile(boot, [alpha * 100, (1 - alpha) * 100])
+    return {
+        "point_estimate": round(float(statistic(data)), 4),
+        "ci_lower": round(float(lo), 4),
+        "ci_upper": round(float(hi), 4),
+        "ci_width": round(float(hi - lo), 4),
+    }
+
+
+def key_metric_cis(df, group_col="model"):
+    """Bootstrap CIs for key metrics, grouped by model (or segment).
+
+    Returns DataFrame with columns: Group, Variable, Label, Estimate, CI_Lower, CI_Upper, CI_Width.
+    """
+    key_vars = {"Q1": "Purchase Interest", "Q2": "Purchase Likelihood", "Q7": "Permit-Light Effect",
+                "Q15": "Value: Permit-Light", "Q16": "Value: Install Speed", "Q17": "Value: Build Quality",
+                "Q19": "Sponsorship Impact"}
+    rows = []
+    for name, grp in df.groupby(group_col):
+        for col, label in key_vars.items():
+            if col not in df.columns:
+                continue
+            ci = bootstrap_ci(grp[col].dropna().values)
+            rows.append({"Group": name, "Variable": col, "Label": label, **ci})
+
+    # Also add overall
+    for col, label in key_vars.items():
+        if col not in df.columns:
+            continue
+        ci = bootstrap_ci(df[col].dropna().values)
+        rows.append({"Group": "Overall", "Variable": col, "Label": label, **ci})
+
+    return pd.DataFrame(rows)
+
+
+# ── Distribution Tests (KS) ────────────────────────────────────────────────
+
+def model_distribution_tests(df):
+    """Pairwise two-sample Kolmogorov-Smirnov tests between models.
+
+    KS tests whether distributions have the same *shape*, not just the same mean.
+    More sensitive than Mann-Whitney for detecting distribution differences.
+
+    Returns DataFrame with: Comparison, Variable, Label, KS_Stat, p, Significant.
+    """
+    from itertools import combinations
+    models = sorted(df["model"].unique())
+    if len(models) < 2:
+        return pd.DataFrame()
+
+    numeric_cols = [c for c in ALL_NUMERIC if c in df.columns and c != "Q30"]
+    rows = []
+    for m1, m2 in combinations(models, 2):
+        for col in numeric_cols:
+            g1 = df.loc[df["model"] == m1, col].dropna().values
+            g2 = df.loc[df["model"] == m2, col].dropna().values
+            if len(g1) < 3 or len(g2) < 3:
+                continue
+            label = LIKERT_KEYS.get(col) or BARRIER_KEYS.get(col) or CONCEPT_APPEAL.get(col, col)
+            ks_stat, p = stats.ks_2samp(g1, g2)
+            rows.append({
+                "Comparison": f"{m1} vs {m2}",
+                "Variable": col, "Label": label,
+                "KS_Stat": round(ks_stat, 4), "p": round(p, 4),
+                "Significant (p<.05)": p < 0.05,
+            })
+    return pd.DataFrame(rows)

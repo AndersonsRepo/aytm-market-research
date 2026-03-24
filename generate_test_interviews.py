@@ -306,11 +306,200 @@ def fill_slots(template, persona, rng):
     return template
 
 
+FOLLOWUP_TEMPLATES = {
+    "remote-worker": {
+        "IQ1": ["You mentioned you mostly see it through the window — do you ever feel like you're missing out on the space you're paying for?",
+                "It sounds like there's some guilt about the backyard sitting unused. Has that changed your thinking about how you use your home overall?"],
+        "IQ2": ["You mentioned noise as a big issue. How does that affect your actual work productivity day-to-day?",
+                "When you say 'desperately need' — have you looked at any temporary solutions? What happened?"],
+        "IQ3": ["What specifically about the permit process worried you? Was it the paperwork, the cost, or something else?",
+                "You got a quote for $40K+ — what made that feel unreasonable? Was it the number itself or the value-for-money?"],
+        "IQ4": ["You mentioned the 30-second commute — is that separation more about physical space or mental transition?",
+                "The standing desk and dual monitors — do you already have those set up somewhere else right now?"],
+        "IQ5": ["You said you eat lunch at your desk and check emails in the evening — has that gotten worse over time or was it always this way?",
+                "That 'headphones as a signal' approach — does it actually work, or do people still interrupt?"],
+        "IQ6": ["You mentioned soundproofing as a priority — have you priced soundproofing separately for an existing room? How does that compare?",
+                "The permit-light aspect — is that relief about the process itself, or more about the timeline?"],
+        "IQ7": ["When you say you'd want to see one in person — what specifically would you be looking for? Build quality, size, aesthetics?",
+                "You mentioned financing — what monthly payment range would feel comfortable for something like this?"],
+        "IQ8": ["You said word of mouth from someone who actually has one would be most convincing — do you know anyone in your network who has a backyard structure?",
+                "Work-from-home forums — are those a place you actively spend time, or more occasional browsing?"],
+    },
+    "active-lifestyle": {
+        "IQ1": ["When you say it's 'chaotic' — is that a source of stress for you, or do you kind of love the controlled chaos?",
+                "You mentioned hosing off gear — does your current setup actually work for that, or is it a pain point?"],
+        "IQ2": ["Your car can't fit in the garage anymore — at what point did that happen, and has it caused any actual problems?",
+                "When you say your family is 'over it' — have they given you an ultimatum, or is it more of a slow burn?"],
+        "IQ3": ["You started building a shed and ran out of motivation — what specifically killed the momentum?",
+                "When you say 'turnkey' — is the installation the main appeal, or is it more about not having to make design decisions?"],
+        "IQ4": ["A post-ride beer fridge in the workshop — is this structure more about function or is it also a social space for you?",
+                "You mentioned hanging out with friends after rides. How many people would this space realistically need to hold?"],
+        "IQ5": ["You said the gear takes over the house — can you give me an example of a recent 'incident' where that was a problem?",
+                "Activity space vs. work space — do you think most products in this category miss that distinction?"],
+        "IQ6": ["You asked about customizing the interior — what's the minimum you'd need in terms of flooring and wall mounts?",
+                "120 sq ft concern — have you measured your current gear footprint? Do you have a sense of how much space you actually need?"],
+        "IQ7": ["You said if it 'feels too delicate' you'd skip it — what would delicate look like to you? What are the warning signs?",
+                "Financing is important — is this a savings vs. credit decision, or more about monthly budget impact?"],
+        "IQ8": ["You said you'd stop and look at a mountain bike event — have you ever actually bought something from an event sponsor?",
+                "Your riding crew as word-of-mouth — do they tend to influence each other's home improvement decisions too?"],
+    },
+    "wellness": {
+        "IQ1": ["You mentioned hearing the neighbors — is privacy the main barrier to using your backyard for wellness, or is it something else?",
+                "Morning meditation in the backyard — how often does that actually happen vs. how often you'd like it to?"],
+        "IQ2": ["You said a separate space would be 'transformative for mental health' — can you unpack that? What would specifically change?",
+                "When you say every room is competing — is this about physical space or emotional energy?"],
+        "IQ3": ["Your Pinterest board dream — how long has that been there? What keeps you going back to look at it?",
+                "The $30K-$50K quotes — did you try to negotiate or find cheaper alternatives after that?"],
+        "IQ4": ["A little altar for meditation — how important is the aesthetic of the space vs. the functionality?",
+                "You said 'consistent instead of sporadic' — what breaks your current practice routine most often?"],
+        "IQ5": ["You said the issue isn't work boundaries but having space for YOU — when did you last feel like you had that?",
+                "Everything being shared or multipurpose — is this about negotiating with family, or is it a design limitation of your home?"],
+        "IQ6": ["You asked about making it feel warm and not industrial — what aesthetic specifically are you imagining?",
+                "Hot yoga in SoCal heat — that's a specific use case. How often would you realistically use it for that?"],
+        "IQ7": ["When you say 'not a shed' — is this about your own perception or how others would see it?",
+                "Testimonials from wellness users — how would that change your confidence vs. seeing office-focused marketing?"],
+        "IQ8": ["Farmers markets and yoga festivals — do you associate brands with values when you see them in those spaces?",
+                "You trust your wellness community — is that an online community or local/in-person relationships?"],
+    },
+    "investment": {
+        "IQ1": ["You think of your property as an investment portfolio — do you track your property value regularly?",
+                "Every improvement should add value — have there been improvements you regret from an ROI perspective?"],
+        "IQ2": ["You mentioned Airbnb potential — have you actually looked into local regulations for short-term rental in your area?",
+                "Aging parents as a use case — is that a near-term reality or more of a future contingency plan?"],
+        "IQ3": ["The $100K+ ADU cost — at what price point would an ADU have been worth it to you?",
+                "You said you've been 'waiting for a better option' — how long have you been looking, and what else have you considered?"],
+        "IQ4": ["You mentioned Airbnb at $75/night — have you done any research on what similar listings go for in your area?",
+                "The 'pays for itself in two years' math — is ROI the primary decision driver, or would you use it yourself too?"],
+        "IQ5": ["You said this is purely about maximizing property value — would you still buy it if it didn't increase your home's appraised value?",
+                "The untapped opportunity — have you gotten an appraiser's opinion on what backyard improvements actually add value?"],
+        "IQ6": ["Quality at that price point — what specifically worries you? Materials, longevity, or fit and finish?",
+                "Can it appraise as added living space — have you asked your real estate agent about that specifically?"],
+        "IQ7": ["Property value impact data — what format would be most convincing? Comps, appraiser letters, or before/after case studies?",
+                "Financing at reasonable rates — what rate would make this a clear 'yes' for you?"],
+        "IQ8": ["Real estate agent recommendations — do you already have an agent you trust? Would their endorsement carry that much weight?",
+                "You said 'show me the numbers' — what numbers specifically would seal the deal?"],
+    },
+    "practical-value": {
+        "IQ1": ["When you say 'nothing fancy' — is that contentment or resignation? Would you do more if budget weren't a factor?",
+                "The backyard feels like an afterthought — is that because of the space itself, or because you haven't had time/money to invest?"],
+        "IQ2": ["Storage, storage, storage — if you could only solve one storage problem, which room or item category would you tackle first?",
+                "Arguments about shared space — can you give me a recent example of how that plays out?"],
+        "IQ3": ["Costco sheds — what specifically about them felt flimsy? Was it in person or online?",
+                "No skills or time for DIY — do you wish you could, or do you genuinely prefer someone else to handle it?"],
+        "IQ4": ["A multipurpose room — if you had to pick ONE primary use, what wins? Your hobbies, kids' space, or storage?",
+                "Leaving things set up without cleaning up — is that the main appeal? What do you currently have to pack away each time?"],
+        "IQ5": ["Life-life balance — interesting phrase. Is the bigger tension between you and your partner, you and kids, or all of the above?",
+                "Not enough corners in the house — have you considered any interior rearrangement, or is it truly a square footage problem?"],
+        "IQ6": ["You winced at the price — what's the max you'd pay without hesitation? Is there a number that feels more comfortable?",
+                "Financing is the key — do you typically finance home improvements, or is this one different because of the amount?"],
+        "IQ7": ["$200-300/month — is that based on a specific budget calculation, or just a gut feel of what's manageable?",
+                "Not a museum piece — that's a strong phrase. What kind of wear and tear are you anticipating?"],
+        "IQ8": ["A neighbor having one as the best marketing — have you ever asked a neighbor about a home product they have?",
+                "Price and value drive your decisions — between those two, which one wins if they conflict?"],
+    },
+}
+
+FOLLOWUP_RESPONSE_TEMPLATES = {
+    "remote-worker": {
+        "IQ1": ["Yeah, absolutely. I'm paying Bay Area-adjacent prices for this property and barely touching the backyard. It's wasted potential that nags at me every time I look outside during a meeting.",
+                "It's definitely changed how I think about home. I used to see it as just living space but now it's also office space, and neither function works well. The backyard is the only unused capacity."],
+        "IQ2": ["It's brutal honestly. I lose probably 20 minutes every time someone interrupts a call. And the mental cost of context-switching is even worse. I've started wearing noise-canceling headphones all day.",
+                "I tried a room divider and a white noise machine. The divider looked terrible and the white noise wasn't enough. This is fundamentally a walls-and-a-door problem."],
+        "IQ3": ["Honestly, the timeline scared me most. The idea of dealing with city planning for weeks while I'm trying to meet deadlines at work — I just couldn't take that on.",
+                "The number itself was fine if it truly added value. But $40K for a shed that might or might not be what I need, with unknown timelines? The risk-to-reward felt off."],
+        "IQ4": ["It's both, but the mental transition is bigger. When I 'leave' for work by walking to a separate building, my brain shifts gears. That's the magic. The physical separation creates the mental boundary.",
+                "Yeah, I have them crammed into the guest bedroom right now. The ergonomics are terrible and I can't close the door because we need the room for actual guests sometimes."],
+        "IQ5": ["It's definitely gotten worse. When I first started remote in 2020, I was disciplined. Now the lines have completely blurred. I'll be cooking dinner and answering Slack messages. It's unsustainable.",
+                "It works maybe 50% of the time. Kids under 8 don't really understand headphone signals. My partner tries to respect it but urgent things come up. It's a band-aid, not a solution."],
+        "IQ6": ["I actually looked into adding soundproofing to the guest room — about $3K-5K and it would still be a shared room. For $23K I'd get a dedicated, purpose-built space. The math actually favors this.",
+                "Mostly the timeline. I've heard permit horror stories from neighbors — 3-6 month waits, plan revisions, inspections. If this truly avoids most of that, it removes the biggest friction."],
+        "IQ7": ["Build quality primarily. I'd be looking at wall thickness, window seals, the flooring. Does it feel like a real room or a glorified tent? I'd literally knock on the walls.",
+                "I could swing $350-400/month over 5 years without stress. Under $300 would make it an easy yes. The key is whether financing is built in or I'd need to find my own."],
+        "IQ8": ["No, actually. I don't know anyone with one, which is part of the problem. If I could visit someone's and spend 30 minutes working from it, I'd have my answer immediately.",
+                "I'm on r/remotework and a few Slack communities daily. Those are genuinely where I get product recommendations. A real user posting their setup there would go viral."],
+    },
+    "active-lifestyle": {
+        "IQ1": ["Honestly? I kind of love it. But my partner absolutely does not. It's become a negotiation point. The chaos is fine for me but it's objectively not a great living situation for two people.",
+                "It works but it's hacky. I'm literally hosing off gear on the lawn and leaning bikes against the house. A proper wash station and storage area would make a huge difference."],
+        "IQ2": ["It happened gradually and then all at once. I got a new mountain bike last year and suddenly there was literally no room. Now I park outside. In a neighborhood where I shouldn't be parking outside.",
+                "It's more of a slow burn with occasional flare-ups. Like when I left muddy cycling shoes in the hallway and got 'the look.' We need a proper solution before it becomes a real fight."],
+        "IQ3": ["Weekend two. I spent the first weekend excited and motivated. The second weekend it rained, I got behind, and then life took over. It sat half-built for three months before I tore it down.",
+                "Both honestly. I don't want to spend months deciding on dimensions and materials. Give me a solid product, drop it in my yard, and let me fill it with gear. Simple."],
+        "IQ4": ["It starts as function but it would absolutely become social. After rides, we always need somewhere to hang out and talk about the ride. Right now that's the driveway. A proper basecamp would be the move.",
+                "Realistically? Me plus 2-3 friends comfortably. We're not hosting parties in there. Just enough room to work on bikes, store gear, and hang out. Four people max."],
+        "IQ5": ["Last month I had three bikes, a surfboard, and a box of camping gear in the living room because I was 'organizing.' My partner took a photo and sent it to me with just a sad face emoji.",
+                "Totally. Every backyard structure I see marketed is a beautiful home office with a MacBook and a plant. That's not me. Show me a dirty workshop with bikes hanging from the ceiling."],
+        "IQ6": ["At minimum: heavy-duty rubber or composite flooring, four to six heavy-duty wall hooks, and at least one workbench surface. Basically industrial, not decorative.",
+                "I actually measured once — my bikes alone take up about 40 sq ft laid out, plus the workbench takes 15. 120 sq ft would be tight but workable if I use vertical space well."],
+        "IQ7": ["If the walls flex when you push on them. If the floor shows scratches after a month. If it feels like it was designed for a yoga mat, not a bike stand. I'd know in the first 30 seconds.",
+                "Monthly budget impact. I already spend $200/month on cycling-related stuff so I'd need to feel like this replaces some other expense. Total monthly outlay matters more than the sticker price."],
+        "IQ8": ["Actually yes — I bought my current helmet from a brand I first saw at a trail race. Event sponsorship works on me if it's authentic and in my world.",
+                "Absolutely. If one of my riding buddies got one, we'd all want to see it. And if it passed the 'real use' test, half the group would probably order one within six months."],
+    },
+    "wellness": {
+        "IQ1": ["It's the main barrier. I can hear my neighbor's TV and their kids playing. For meditation you need quiet. Real quiet. Even the sounds of the street pull me out of my practice.",
+                "Honestly? Maybe once a week successfully. I want it to be daily but the conditions have to be perfect — quiet, right temperature, no one home. That's maybe one morning a week."],
+        "IQ2": ["I think my anxiety would genuinely decrease. Right now I carry tension from never having a space that's mine. My nervous system never fully relaxes at home. A sanctuary would change that baseline.",
+                "It's emotional energy. Even when a room is 'available,' it doesn't feel like mine. There's always someone else's stuff, someone else's schedule. I need a space that's psychologically mine."],
+        "IQ3": ["Three years. I still add pins to it. It's this aspirational board of bamboo floors and floor-to-ceiling windows and hanging plants. Every time I add something, it reminds me I haven't done it yet.",
+                "I asked about smaller structures but everyone wanted to upsell me to a full ADU. Nobody was interested in building a simple 100 sq ft wellness space. The market gap is real."],
+        "IQ4": ["Honestly? Equally important. The aesthetics ARE the functionality for wellness. A beautiful space calms your nervous system before you even start practicing. An ugly space would work against the purpose.",
+                "The dog, the phone, meal prep, my partner wanting to talk. If I had a physical door between me and all of that, I could actually commit to 30 minutes daily instead of skipping 4 out of 5 days."],
+        "IQ5": ["Honestly, not since before the pandemic. I had a brief period in 2019 when the kids were in school and the house was empty for a few hours. That was the last time I felt like I had true space.",
+                "Both. The home wasn't designed for this many needs. But also, rearranging furniture doesn't create walls. What I need is a physically separate space with a door I can close and lock."],
+        "IQ6": ["Natural materials, warm lighting, earth tones. Think Japanese minimalism meets California boho. Not chrome and white plastic. I'd want to feel grounded the moment I step inside.",
+                "In peak summer? Probably 3-4 times a week if the AC works. I practice Bikram-style occasionally but really it's about having a temperature-controlled sanctuary year-round, not just hot yoga."],
+        "IQ7": ["My own perception. A shed feels like storage. A retreat feels like self-care. The language, the design, the experience — it all needs to say 'you're worth this investment.' I'm buying a feeling.",
+                "Hugely. Right now I see this product and think 'that could be my office.' I'd buy it for wellness but I need to see someone using it that way. Representation matters in marketing."],
+        "IQ8": ["Absolutely. When I see a brand at a yoga festival, I assume they share my values — sustainability, community, wellbeing. That creates instant trust that no ad can replicate.",
+                "Both. I have a local yoga studio community and I'm in several online wellness groups. Both are influential but the in-person relationships carry more weight for big purchases."],
+    },
+    "investment": {
+        "IQ1": ["I check Zillow and Redfin monthly. I know my property has appreciated 40% since purchase. Every dollar I spend on improvements, I think about in terms of what it adds to that number.",
+                "One — the koi pond. Cost $8K and adds zero resale value. My wife loves it, so it stays, but I learned my lesson. Now everything has to pass the ROI test."],
+        "IQ2": ["I have, actually. My area allows them but with a 60-day minimum stay requirement. That changes the math significantly. I'd need to think about it differently — more long-term rental than Airbnb.",
+                "Near-term. My mother-in-law's health is declining and we're looking at options for the next 2-3 years. An in-law suite alternative at $23K vs. $100K for an ADU is very compelling."],
+        "IQ3": ["Honestly? Around $50K with a guaranteed 6-month timeline and clear permits. The value is there but the execution risk was too high at $100K with uncertain timelines.",
+                "About 18 months seriously. I've looked at container homes, prefab ADUs, garage conversions. Everything is either too expensive, too complicated, or too ugly."],
+        "IQ4": ["I've looked. Studios and guest houses in my area rent for $1,200-$2,500/month long-term. Even at the low end, the ROI timeline on $23K is outstanding compared to any other home improvement.",
+                "I'd use it too — as a home office initially, then convert to rental when I retire. The dual-use potential is what makes it smart. Pure rental play would also work, but flexibility is the real value."],
+        "IQ5": ["Honestly? Probably not. The pure lifestyle value doesn't justify $23K for me. But if it adds $40-50K in property value AND I get to use it? That's a completely different calculation.",
+                "My agent said ADUs add the most value, but at 10x the cost. She hasn't had a client with one of these smaller structures yet. First-mover risk, but also first-mover opportunity."],
+        "IQ6": ["Materials primarily. At $23K I need to know what I'm getting. What's the framing? Insulation R-value? Roofing material? Warranty on structural components? I'd want a spec sheet.",
+                "Not yet, but I should. My gut says it wouldn't appraise as living space since it's under 120 sq ft, but it would add 'amenity value.' I'd want clarity on that before committing."],
+        "IQ7": ["Before/after case studies with actual appraisal numbers. 'Homeowner X installed this, property value increased by Y%.' That's the gold standard. Comps are helpful but case studies sell.",
+                "Under 6% APR makes it a no-brainer. At 8-10% I'd pay cash if I have it. Above 10% I'd wait for a better deal. The financing terms could make or break this for the mass market."],
+        "IQ8": ["Yes — she's sold us two houses and manages a rental property for us. If she said 'this adds value, buy it,' I'd have it installed next week. Agent endorsement is my cheat code.",
+                "ROI data, rental income projections, and property value impact. If you can show me it pays for itself in 24 months, I'll buy it today. That's not hyperbole."],
+    },
+    "practical-value": {
+        "IQ1": ["If I'm honest? Resignation mostly. We'd love a nicer backyard but between the mortgage and the kids, there's always something more urgent. The backyard keeps getting pushed to 'next year.'",
+                "Both really. The space is small and we haven't invested in it. But even with investment, I'm not sure what we'd do with 15x20 feet. It's genuinely limited."],
+        "IQ2": ["The garage. Without question. If I could get the holiday decorations, camping gear, and bikes out of the garage, we'd reclaim usable space. Everything cascades from that one bottleneck.",
+                "Last week my partner wanted to do a puzzle but the table was covered in my craft supplies. So the puzzle went on the couch. Then there was nowhere to sit. It's like a space Tetris that never ends."],
+        "IQ3": ["In person at Costco. I tapped on the walls and they flexed. The floor was thin plywood. For $2K it's fine, but it wouldn't survive my kids or real weather. You get what you pay for.",
+                "I'd genuinely prefer turnkey. I have exactly zero free weekends and the thought of a DIY project gives me anxiety. I'd pay a premium for 'show up, install it, leave.'"],
+        "IQ4": ["Kids' space, if I'm being selfless. My hobbies, if I'm being honest. In practice it would probably be 60% kids stuff and 40% my projects, and I'd be fine with that.",
+                "My sewing machine lives in a closet. I pull it out, set up on the dining table, and pack everything away before dinner. Every single time. Having it permanently set up would save hours a week."],
+        "IQ5": ["All of the above but the kids drive most of it. They need space for homework, play, and their stuff. We need space for adulting. Nobody has enough room and everyone compromises.",
+                "We've tried rearranging three times. The problem is we have three bedrooms for four people and none of them are big enough for dual purpose. It's fundamentally a square footage issue."],
+        "IQ6": ["Without hesitation? Probably $15K. That feels proportional to what we'd pay for other home improvements. $23K isn't impossible but it's in 'let me think about it for three months' territory.",
+                "We finance everything over $2K typically — appliances, car repairs, that kind of thing. This would be the biggest single purchase we've financed for the home, so the terms really matter."],
+        "IQ7": ["Gut feel based on our monthly budget. We have about $500/month discretionary after bills and savings. $200-300 leaves room for life to happen. $400 would feel tight.",
+                "Real wear and tear. Kids running in and out, craft supplies everywhere, maybe a dog bed in the corner. I need to know the floor can handle dirt, spills, and foot traffic without looking destroyed in a year."],
+        "IQ8": ["Actually yes. Our neighbors got a hot tub last year and we walked over to see it the first week. If they had one of these structures, we'd be over there within a day asking questions.",
+                "Price wins every time. I'll sacrifice some style for a better price point. But value means durability too — if a cheaper option falls apart in 3 years, the expensive one was actually the better value."],
+    },
+}
+
+
 def generate_test_transcript(persona, model_label):
-    """Generate one test interview transcript."""
+    """Generate one test interview transcript with multi-turn follow-ups."""
     rng = random.Random(hash((persona["persona_id"], model_label, "test_interview")))
     tendency = assign_tendency(persona)
     profile = TENDENCIES[tendency]
+    followup_qs = FOLLOWUP_TEMPLATES.get(tendency, {})
+    followup_rs = FOLLOWUP_RESPONSE_TEMPLATES.get(tendency, {})
 
     row = {
         "interview_id": f"{persona['persona_id']}_{model_label}",
@@ -324,12 +513,24 @@ def generate_test_transcript(persona, model_label):
         "household": persona["household"],
         "lifestyle_note": persona["lifestyle_note"],
         "hoa_status": persona["hoa_status"],
+        "interview_mode": "multi_turn",
+        "num_turns": 17,
     }
 
-    for key in ["IQ1", "IQ2", "IQ3", "IQ4", "IQ5", "IQ6", "IQ7", "IQ8", "additional_thoughts"]:
+    for key in ["IQ1", "IQ2", "IQ3", "IQ4", "IQ5", "IQ6", "IQ7", "IQ8"]:
         templates = profile[key]
         template = rng.choice(templates)
         row[key] = fill_slots(template, persona, rng)
+
+        # Follow-up question and response
+        fq_templates = followup_qs.get(key, ["Can you tell me more about that?"])
+        fr_templates = followup_rs.get(key, ["I think I've covered the main points. It really comes down to making the space work for our situation."])
+        row[f"{key}_followup_question"] = rng.choice(fq_templates)
+        row[f"{key}_followup_response"] = fill_slots(rng.choice(fr_templates), persona, rng)
+
+    # Additional thoughts
+    templates = profile["additional_thoughts"]
+    row["additional_thoughts"] = fill_slots(rng.choice(templates), persona, rng)
 
     row["generation_timestamp"] = datetime(2026, 3, 8, 14, 0, 0, tzinfo=timezone.utc).isoformat()
     row["raw_json"] = json.dumps({k: row[k] for k in ["IQ1", "IQ2", "IQ3", "IQ4", "IQ5", "IQ6", "IQ7", "IQ8", "additional_thoughts"]})
@@ -354,14 +555,23 @@ def generate_test_analysis(row, tendency, profile):
     analysis_row = dict(row)
 
     sentiments = []
+    followup_sentiments = []
     for q in ["IQ1", "IQ2", "IQ3", "IQ4", "IQ5", "IQ6", "IQ7", "IQ8"]:
         score = baselines[q] + rng.gauss(0, 0.15)
         score = max(-1.0, min(1.0, round(score, 4)))
         analysis_row[f"sentiment_{q}"] = score
         sentiments.append(score)
 
+        # Follow-up sentiment — slightly more extreme (follow-ups go deeper)
+        fu_score = baselines[q] * 1.2 + rng.gauss(0, 0.12)
+        fu_score = max(-1.0, min(1.0, round(fu_score, 4)))
+        analysis_row[f"sentiment_{q}_followup"] = fu_score
+        followup_sentiments.append(fu_score)
+
     overall = round(sum(sentiments) / len(sentiments), 4)
     analysis_row["sentiment_overall"] = overall
+    all_scores = sentiments + followup_sentiments
+    analysis_row["sentiment_combined"] = round(sum(all_scores) / len(all_scores), 4)
     analysis_row["sentiment_label"] = "Positive" if overall > 0.05 else ("Negative" if overall < -0.05 else "Neutral")
 
     # Emotional tone
@@ -542,6 +752,19 @@ def main():
     print(f"\nMean sentiment by question:")
     for q in ["IQ1", "IQ2", "IQ3", "IQ4", "IQ5", "IQ6", "IQ7", "IQ8"]:
         print(f"  {q}: {df[f'sentiment_{q}'].mean():.3f}")
+
+
+def generate_all_test_data():
+    """Generate all test interview data and return stats dict (for demo.py)."""
+    main()
+    import pandas as pd
+    df = pd.read_csv(OUTPUT_DIR / "interview_analysis.csv")
+    themes = json.loads((OUTPUT_DIR / "interview_themes.json").read_text())
+    return {
+        "n_interviews": len(df),
+        "n_themes": len(themes.get("llm_themes", [])),
+        "models": sorted(df["model"].unique().tolist()),
+    }
 
 
 if __name__ == "__main__":
