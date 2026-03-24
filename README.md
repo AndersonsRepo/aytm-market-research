@@ -21,9 +21,13 @@ This prototype replaces both phases with LLM-generated "synthetic respondents" â
 
 ---
 
-## Live Demo
+## Live Demos
 
-**[aytm-pipeline.vercel.app](https://aytm-pipeline.vercel.app)** â€” Click "Load Demo Data" to explore the full 6-stage pipeline with interactive Recharts visualizations. No setup required.
+| Interface | URL | What It Shows |
+|-----------|-----|---------------|
+| **Pipeline Orchestrator** | [aytm-pipeline.vercel.app](https://aytm-pipeline.vercel.app) | 6-stage pipeline with Recharts visualizations. Click "Load Demo Data" to explore. |
+| **Analytics Dashboard** | Run locally: `streamlit run combined_dashboard.py` | 9-tab Streamlit dashboard: discovery, interviews, survey design, quant results, cross-validation, model reliability, bias detection, methodology |
+| **CLI Demo** | `python demo.py --quick` | Instant terminal output with key findings and data-driven recommendations |
 
 ---
 
