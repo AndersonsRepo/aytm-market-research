@@ -14,7 +14,7 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 MODELS = {
     "openai/gpt-4.1-mini": "GPT-4.1-mini",
     "google/gemini-2.5-flash": "Gemini-2.5-Flash",
-    "anthropic/claude-sonnet-4-20250514": "Claude-Sonnet-4",
+    "anthropic/claude-sonnet-4.6": "Claude-Sonnet-4.6",
 }
 
 # Segment-specific response profiles: (mean, spread) for Likert items
@@ -156,7 +156,7 @@ SEGMENT_PROFILES = {
 MODEL_BIAS = {
     "GPT-4.1-mini": 0.15,
     "Gemini-2.5-Flash": -0.10,
-    "Claude-Sonnet-4": 0.05,
+    "Claude-Sonnet-4.6": 0.05,
 }
 
 S3_OPTIONS = ["Yes", "I'm not sure, but possibly"]

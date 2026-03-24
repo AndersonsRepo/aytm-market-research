@@ -19,7 +19,7 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODELS = {
     "openai/gpt-4.1-mini": "GPT-4.1-mini",
     "google/gemini-2.5-flash": "Gemini-2.5-Flash",
-    "anthropic/claude-sonnet-4-20250514": "Claude-Sonnet-4",
+    "anthropic/claude-sonnet-4.6": "Claude-Sonnet-4.6",
 }
 RESPONDENTS_PER_SEGMENT_PER_MODEL = 6  # 6 * 5 segments * 3 models = 90
 MAX_WORKERS = 10

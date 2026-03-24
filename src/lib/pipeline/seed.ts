@@ -313,7 +313,7 @@ const SEGMENT_PROFILES: Record<number, SegmentProfile> = {
 const MODEL_BIAS: Record<string, number> = {
   "GPT-4.1-mini": 0.15,
   "Gemini-2.5-Flash": -0.10,
-  "Claude-Sonnet-4": 0.05,
+  "Claude-Sonnet-4.6": 0.05,
 };
 
 const S3_OPTIONS = ["Yes", "I'm not sure, but possibly"];
@@ -589,7 +589,7 @@ const DISCOVERY_RESPONSES: Record<string, Record<string, string>> = {
     DQ9: "Neo Smart Living should position as the 'Third Way' — neither the hassle of contractors nor the compromise of DIY. Key messaging: 'We built the product so you don't have to build anything.' Against contractors: time savings (1 day vs. months) and cost certainty. Against DIY: quality, warranty, and zero effort. Critical: never say 'shed' in marketing — this is a 'backyard studio,' 'home office,' or 'private retreat.'",
     DQ10: "Channel strategy should be segmented by persona: 1) Remote workers — LinkedIn ads, WFH community partnerships, coworking space partnerships. 2) Wellness seekers — Instagram, wellness influencers, yoga studio partnerships. 3) Property investors — real estate agent referral programs, Zillow/Redfin partnerships. 4) Adventure enthusiasts — outdoor event sponsorship, REI-style partnerships. 5) Budget-conscious — Google search ads, home improvement content marketing, financing partner co-marketing.",
   },
-  "anthropic/claude-sonnet-4-20250514": {
+  "anthropic/claude-sonnet-4.6": {
     DQ1: "The Tahoe Mini's value proposition operates on three levels: functional (additional usable space), emotional (personal sanctuary and autonomy), and financial (property value enhancement without ADU-level investment). The $23,000 price point is strategic — high enough to signal quality and differentiate from commodity sheds, but low enough to be accessible with financing. The one-day installation narrative is the most compelling element: it converts what is typically a months-long anxiety-inducing project into a single-day transformation.",
     DQ2: "Profile 1: The Space-Starved Remote Worker (28-42, dual income $120K+) — Educated professional whose employer went permanent remote/hybrid. Has been 'making do' with a dining table or bedroom corner office for years. Decision trigger: another embarrassing video call interruption. Profile 2: The Wellness Investor (35-55, $100-200K) — Prioritizes mental and physical health. Wants a dedicated space for yoga, meditation, art, or journaling. Views the purchase as self-care investment, not home improvement. Profile 3: The Pragmatic Property Owner (42-62, $150K+) — Analytical buyer who thinks in terms of cost-per-square-foot and ROI. Interested in guest accommodation and potential STR income.",
     DQ3: "1) Sticker shock relative to mental anchoring — buyers unconsciously compare to Home Depot shed prices ($2-8K) before understanding the quality gap. The solution is reframing: compare to contractor costs ($80K+), not shed costs. 2) HOA/regulatory fear — this is an emotional barrier as much as a practical one. Even when permits aren't required, buyers fear 'getting in trouble.' 3) Commitment anxiety — $23K is a significant decision, and buyers worry about making the wrong choice (wrong size, wrong use case, buyer's remorse). A satisfaction guarantee would address this directly.",
@@ -967,7 +967,7 @@ export async function seedDemoData(supabase: SupabaseClient, runId: string): Pro
     run_id: runId,
     section_id: sid,
     section_label: sectionLabels[sid],
-    models_including: [MODEL_LABELS["openai/gpt-4.1-mini"], MODEL_LABELS["google/gemini-2.5-flash"], MODEL_LABELS["anthropic/claude-sonnet-4-20250514"]],
+    models_including: [MODEL_LABELS["openai/gpt-4.1-mini"], MODEL_LABELS["google/gemini-2.5-flash"], MODEL_LABELS["anthropic/claude-sonnet-4.6"]],
     question_counts: Object.fromEntries(
       modelIds.map((mid) => [MODEL_LABELS[mid], sectionQuestionCounts[sid]])
     ),

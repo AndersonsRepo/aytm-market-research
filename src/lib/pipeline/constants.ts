@@ -17,7 +17,7 @@ import type {
 export const MODELS: Record<string, ModelInfo> = {
   'openai/gpt-4.1-mini': { id: 'openai/gpt-4.1-mini', label: 'GPT-4.1-mini' },
   'google/gemini-2.5-flash': { id: 'google/gemini-2.5-flash', label: 'Gemini-2.5-Flash' },
-  'anthropic/claude-sonnet-4-20250514': { id: 'anthropic/claude-sonnet-4-20250514', label: 'Claude-Sonnet-4' },
+  'anthropic/claude-sonnet-4.6': { id: 'anthropic/claude-sonnet-4.6', label: 'Claude-Sonnet-4.6' },
 };
 
 export const MODEL_IDS = Object.keys(MODELS) as string[];
@@ -25,7 +25,7 @@ export const MODEL_IDS = Object.keys(MODELS) as string[];
 export const MODEL_LABELS: Record<string, string> = {
   'openai/gpt-4.1-mini': 'GPT-4.1-mini',
   'google/gemini-2.5-flash': 'Gemini-2.5-Flash',
-  'anthropic/claude-sonnet-4-20250514': 'Claude-Sonnet-4',
+  'anthropic/claude-sonnet-4.6': 'Claude-Sonnet-4.6',
 };
 
 // --- Interview Questions ---
@@ -760,7 +760,7 @@ export const SEGMENT_PROFILES: Record<number, SegmentProfile> = {
 export const MODEL_BIAS: ModelBias = {
   'GPT-4.1-mini': 0.15,
   'Gemini-2.5-Flash': -0.10,
-  'Claude-Sonnet-4': 0.05,
+  'Claude-Sonnet-4.6': 0.05,
 };
 
 // --- OpenRouter ---

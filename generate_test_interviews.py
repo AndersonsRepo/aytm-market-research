@@ -702,7 +702,7 @@ def generate_test_themes(analysis_rows):
 
 def main():
     # 3-way interleaved model assignment: GPT, Gemini, Claude
-    model_ids = ["openai/gpt-4.1-mini", "google/gemini-2.5-flash", "anthropic/claude-sonnet-4-20250514"]
+    model_ids = ["openai/gpt-4.1-mini", "google/gemini-2.5-flash", "anthropic/claude-sonnet-4.6"]
 
     transcript_rows = []
     analysis_rows = []

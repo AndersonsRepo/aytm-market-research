@@ -284,11 +284,11 @@ INTERVIEW_PERSONAS = [
 MODEL_ASSIGNMENTS = {
     "openai/gpt-4.1-mini": [p for i, p in enumerate(INTERVIEW_PERSONAS) if i % 3 == 0],
     "google/gemini-2.5-flash": [p for i, p in enumerate(INTERVIEW_PERSONAS) if i % 3 == 1],
-    "anthropic/claude-sonnet-4-20250514": [p for i, p in enumerate(INTERVIEW_PERSONAS) if i % 3 == 2],
+    "anthropic/claude-sonnet-4.6": [p for i, p in enumerate(INTERVIEW_PERSONAS) if i % 3 == 2],
 }
 
 MODEL_LABELS = {
     "openai/gpt-4.1-mini": "GPT-4.1-mini",
     "google/gemini-2.5-flash": "Gemini-2.5-Flash",
-    "anthropic/claude-sonnet-4-20250514": "Claude-Sonnet-4",
+    "anthropic/claude-sonnet-4.6": "Claude-Sonnet-4.6",
 }

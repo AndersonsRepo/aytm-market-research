@@ -35,7 +35,7 @@ OUTPUT_PATH = OUTPUT_DIR / "survey_design.json"
 MODELS = {
     "gpt-4.1-mini": "openai/gpt-4.1-mini",
     "gemini-2.5-flash": "google/gemini-2.5-flash-preview",
-    "claude-sonnet-4": "anthropic/claude-sonnet-4",
+    "claude-sonnet-4": "anthropic/claude-sonnet-4.6",
 }
 
 # Survey question types
