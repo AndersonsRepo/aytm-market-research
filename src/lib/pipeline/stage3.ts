@@ -259,10 +259,17 @@ export async function runStage3(
 
       designs.push(designResult);
     } catch (err) {
-      console.error(`Survey design failed for ${modelLabel}:`, err);
-      // Continue with remaining models
-    }
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`Survey design failed for ${modelLabel}:`, errMsg);
 
+      // Record failure in progress so UI can surface it
+      await updateProgress(
+        supabase,
+        runId,
+        Math.round((modelsCompleted / MODEL_IDS.length) * 90),
+        `⚠ ${modelLabel} failed: ${errMsg.slice(0, 100)}`,
+      );
+    }
     modelsCompleted++;
     await updateProgress(
       supabase,

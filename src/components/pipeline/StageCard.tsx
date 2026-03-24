@@ -310,7 +310,7 @@ function SurveyDesignResults({ runId }: { runId: string }) {
               <div className="font-medium text-sm text-white mb-2">{d.model.split("/").pop()}</div>
               <div className="text-xs text-gray-400 space-y-1">
                 <div>Questions: <span className="text-white font-mono">{d.total_questions || "—"}</span></div>
-                <div>Duration: <span className="text-white font-mono">{d.estimated_duration_minutes || "—"}m</span></div>
+                <div>Est. Survey Time: <span className="text-white font-mono">{d.estimated_duration_minutes || "—"}m</span></div>
                 {Array.isArray(sections) && sections.length > 0 && (
                   <div className="mt-2 space-y-0.5">
                     {sections.slice(0, 5).map((s: any, j: number) => (
@@ -428,7 +428,7 @@ function AnalysisResults({ runId }: { runId: string }) {
   });
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-6">
       <div className="grid grid-cols-3 gap-3">
         <StatCard label="Analysis Types" value={Object.keys(byType).length} />
         <StatCard label="Total Results" value={results.length} />
@@ -437,9 +437,274 @@ function AnalysisResults({ runId }: { runId: string }) {
 
       {Object.entries(byType).map(([type, items]) => (
         <div key={type}>
-          <SectionHeader>{type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</SectionHeader>
+          <SectionHeader>{type.replace(/_/g, " ").replace(/\w/g, c => c.toUpperCase())}</SectionHeader>
           {items.map((item, i) => {
             const data = item.results || {};
+
+            {/* ── descriptive_likert ── */}
+            if (type === "descriptive_likert") {
+              const groupData = data.data as Record<string, Array<{ variable: string; label: string; n: number; mean: number; sd: number; median: number; iqr: number }>> | undefined;
+              if (!groupData) return null;
+              return (
+                <div key={i} className="space-y-4 mb-4">
+                  <p className="text-xs text-gray-500">Grouped by: {data.by || item.group_by || "—"}</p>
+                  {Object.entries(groupData).map(([groupName, vars]) => (
+                    <div key={groupName} className="bg-gray-800/40 border border-gray-700 rounded-lg p-4">
+                      <p className="text-sm font-medium text-white mb-3">{groupName}</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-gray-400 border-b border-gray-700">
+                              <th className="text-left py-2 pr-3">Variable</th>
+                              <th className="text-center py-2 px-2">N</th>
+                              <th className="text-center py-2 px-2">Mean</th>
+                              <th className="text-center py-2 px-2">SD</th>
+                              <th className="text-center py-2 px-2">Median</th>
+                              <th className="text-center py-2 px-2">IQR</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {vars.slice(0, 15).map((v) => {
+                              const bg = v.mean >= 4 ? "text-emerald-400" : v.mean >= 3 ? "text-yellow-400" : v.mean >= 2 ? "text-orange-400" : "text-red-400";
+                              return (
+                                <tr key={v.variable} className="border-b border-gray-800/50">
+                                  <td className="py-1.5 pr-3 text-gray-300">{v.label || v.variable}</td>
+                                  <td className="text-center py-1.5 px-2 text-gray-500 font-mono">{v.n}</td>
+                                  <td className={`text-center py-1.5 px-2 font-bold font-mono ${bg}`}>{v.mean?.toFixed(2)}</td>
+                                  <td className="text-center py-1.5 px-2 text-gray-400 font-mono">{v.sd?.toFixed(2)}</td>
+                                  <td className="text-center py-1.5 px-2 text-gray-400 font-mono">{v.median?.toFixed(1)}</td>
+                                  <td className="text-center py-1.5 px-2 text-gray-400 font-mono">{v.iqr?.toFixed(1)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        {vars.length > 15 && <p className="text-xs text-gray-600 mt-2">Showing 15 of {vars.length} variables</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+
+            {/* ── model_comparison_likert (pairwise Mann-Whitney U) ── */}
+            if (type === "model_comparison_likert") {
+              const pairwise = data.pairwise as Array<{ comparison: string; variable: string; label: string; mean_1: number; mean_2: number; U: number; p: number; effect_size: number; significant: boolean }> | undefined;
+              if (!pairwise || pairwise.length === 0) return null;
+              const sigCount = pairwise.filter(r => r.significant).length;
+              return (
+                <div key={i} className="space-y-3 mb-4">
+                  <div className="flex gap-3">
+                    <Tag color="bg-blue-900/50 text-blue-300">{pairwise.length} comparisons</Tag>
+                    <Tag color={sigCount > 0 ? "bg-yellow-900/50 text-yellow-300" : "bg-gray-800 text-gray-400"}>{sigCount} significant {"(p<0.05)"}</Tag>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-gray-400 border-b border-gray-700">
+                          <th className="text-left py-2 pr-2">Comparison</th>
+                          <th className="text-left py-2 pr-2">Variable</th>
+                          <th className="text-center py-2 px-2">Mean 1</th>
+                          <th className="text-center py-2 px-2">Mean 2</th>
+                          <th className="text-center py-2 px-2">U</th>
+                          <th className="text-center py-2 px-2">p</th>
+                          <th className="text-center py-2 px-2">Effect</th>
+                          <th className="text-center py-2 px-2">Sig?</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pairwise.filter(r => r.significant).concat(pairwise.filter(r => !r.significant)).slice(0, 20).map((r, j) => (
+                          <tr key={j} className={`border-b border-gray-800/50 ${r.significant ? "bg-yellow-950/10" : ""}`}>
+                            <td className="py-1.5 pr-2 text-gray-400 font-mono">{r.comparison.replace(/\//g, "").replace(/ vs /g, " vs ")}</td>
+                            <td className="py-1.5 pr-2 text-gray-300">{r.label || r.variable}</td>
+                            <td className="text-center py-1.5 px-2 font-mono text-gray-300">{r.mean_1?.toFixed(2)}</td>
+                            <td className="text-center py-1.5 px-2 font-mono text-gray-300">{r.mean_2?.toFixed(2)}</td>
+                            <td className="text-center py-1.5 px-2 font-mono text-gray-500">{r.U?.toFixed(0)}</td>
+                            <td className={`text-center py-1.5 px-2 font-mono ${r.significant ? "text-yellow-400 font-bold" : "text-gray-500"}`}>{r.p?.toFixed(4)}</td>
+                            <td className="text-center py-1.5 px-2 font-mono text-gray-400">{r.effect_size?.toFixed(3)}</td>
+                            <td className="text-center py-1.5 px-2">{r.significant ? <span className="text-yellow-400">*</span> : <span className="text-gray-600">—</span>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {pairwise.length > 20 && <p className="text-xs text-gray-600 mt-2">Showing 20 of {pairwise.length} comparisons (significant first)</p>}
+                  </div>
+                </div>
+              );
+            }
+
+            {/* ── kruskal_wallis ── */}
+            if (type === "kruskal_wallis") {
+              const kwResults = data.results as Array<{ variable: string; label: string; means: Record<string, number>; H: number; p: number; epsilon_sq: number; significant: boolean }> | undefined;
+              if (!kwResults || kwResults.length === 0) return null;
+              const modelNames = kwResults.length > 0 && kwResults[0].means ? Object.keys(kwResults[0].means) : [];
+              return (
+                <div key={i} className="space-y-3 mb-4">
+                  <Tag color="bg-purple-900/50 text-purple-300">{kwResults.filter(r => r.significant).length} of {kwResults.length} variables significant</Tag>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-gray-400 border-b border-gray-700">
+                          <th className="text-left py-2 pr-2">Variable</th>
+                          {modelNames.map(m => <th key={m} className="text-center py-2 px-2">{m.split("/").pop()}</th>)}
+                          <th className="text-center py-2 px-2">H</th>
+                          <th className="text-center py-2 px-2">p</th>
+                          <th className="text-center py-2 px-2">{"ε²"}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {kwResults.map((r, j) => (
+                          <tr key={j} className={`border-b border-gray-800/50 ${r.significant ? "bg-yellow-950/10" : ""}`}>
+                            <td className="py-1.5 pr-2 text-gray-300">{r.label || r.variable}</td>
+                            {modelNames.map(m => (
+                              <td key={m} className="text-center py-1.5 px-2 font-mono text-gray-300">{r.means?.[m]?.toFixed(2) ?? "—"}</td>
+                            ))}
+                            <td className="text-center py-1.5 px-2 font-mono text-gray-500">{r.H?.toFixed(2)}</td>
+                            <td className={`text-center py-1.5 px-2 font-mono ${r.significant ? "text-yellow-400 font-bold" : "text-gray-500"}`}>{r.p?.toFixed(4)}</td>
+                            <td className="text-center py-1.5 px-2 font-mono text-gray-400">{r.epsilon_sq?.toFixed(4)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            }
+
+            {/* ── barrier_heatmap ── */}
+            if (type === "barrier_heatmap") {
+              const matrix = data.matrix as Record<string, Record<string, number>> | undefined;
+              if (!matrix) return null;
+              const segments = Object.keys(matrix);
+              const barriers = segments.length > 0 ? Object.keys(matrix[segments[0]]) : [];
+              const allVals = segments.flatMap(s => Object.values(matrix[s]));
+              const minVal = Math.min(...allVals);
+              const maxVal = Math.max(...allVals);
+              const range = maxVal - minVal || 1;
+              return (
+                <div key={i} className="mb-4">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-gray-400 border-b border-gray-700">
+                          <th className="text-left py-2 pr-2">Segment</th>
+                          {barriers.map(b => <th key={b} className="text-center py-2 px-1 max-w-[80px]"><span className="block truncate">{b}</span></th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {segments.map(seg => (
+                          <tr key={seg} className="border-b border-gray-800/50">
+                            <td className="py-2 pr-2 text-gray-300 font-medium whitespace-nowrap">{seg}</td>
+                            {barriers.map(b => {
+                              const val = matrix[seg][b] ?? 0;
+                              const intensity = (val - minVal) / range;
+                              const bg = intensity >= 0.75 ? "bg-red-900/60 text-red-300" : intensity >= 0.5 ? "bg-orange-900/40 text-orange-300" : intensity >= 0.25 ? "bg-yellow-900/30 text-yellow-300" : "bg-emerald-900/20 text-emerald-300";
+                              return <td key={b} className={`text-center py-2 px-1 font-mono font-bold ${bg}`}>{val.toFixed(2)}</td>;
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                    <span>Low barrier</span>
+                    <div className="flex h-3">
+                      <div className="w-8 bg-emerald-900/40 rounded-l" />
+                      <div className="w-8 bg-yellow-900/40" />
+                      <div className="w-8 bg-orange-900/50" />
+                      <div className="w-8 bg-red-900/60 rounded-r" />
+                    </div>
+                    <span>High barrier</span>
+                  </div>
+                </div>
+              );
+            }
+
+            {/* ── segment_profiles ── */}
+            if (type === "segment_profiles") {
+              const profiles = data.profiles as Record<string, Record<string, number>> | undefined;
+              if (!profiles) return null;
+              const segments = Object.keys(profiles);
+              const variables = segments.length > 0 ? Object.keys(profiles[segments[0]]) : [];
+              return (
+                <div key={i} className="mb-4">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-gray-400 border-b border-gray-700">
+                          <th className="text-left py-2 pr-2">Variable</th>
+                          {segments.map(s => <th key={s} className="text-center py-2 px-2">{s}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {variables.slice(0, 20).map(v => (
+                          <tr key={v} className="border-b border-gray-800/50">
+                            <td className="py-1.5 pr-2 text-gray-300">{v}</td>
+                            {segments.map(s => {
+                              const val = profiles[s][v] ?? 0;
+                              const bg = val >= 4 ? "text-emerald-400" : val >= 3 ? "text-yellow-400" : val >= 2 ? "text-orange-400" : "text-red-400";
+                              return <td key={s} className={`text-center py-1.5 px-2 font-mono font-bold ${bg}`}>{val.toFixed(2)}</td>;
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {variables.length > 20 && <p className="text-xs text-gray-600 mt-2">Showing 20 of {variables.length} variables</p>}
+                  </div>
+                </div>
+              );
+            }
+
+            {/* ── descriptive_categorical ── */}
+            if (type === "descriptive_categorical") {
+              const catData = data.data as Record<string, Record<string, Record<string, { count: number; pct: number }>>> | undefined;
+              if (!catData) return null;
+              const catKeys = Object.keys(catData);
+              return (
+                <div key={i} className="space-y-4 mb-4">
+                  <p className="text-xs text-gray-500">Grouped by: {data.by || "segment"}</p>
+                  {catKeys.slice(0, 6).map(catKey => {
+                    const segments = catData[catKey];
+                    const segNames = Object.keys(segments);
+                    const allValues = [...new Set(segNames.flatMap(s => Object.keys(segments[s])))];
+                    return (
+                      <div key={catKey} className="bg-gray-800/40 border border-gray-700 rounded-lg p-4">
+                        <p className="text-sm font-medium text-white mb-3">{catKey}</p>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-gray-400 border-b border-gray-700">
+                                <th className="text-left py-2 pr-2">Value</th>
+                                {segNames.map(s => <th key={s} className="text-center py-2 px-2">{s}</th>)}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {allValues.slice(0, 10).map(val => (
+                                <tr key={val} className="border-b border-gray-800/50">
+                                  <td className="py-1.5 pr-2 text-gray-300">{val}</td>
+                                  {segNames.map(s => {
+                                    const entry = segments[s]?.[val];
+                                    return (
+                                      <td key={s} className="text-center py-1.5 px-2 text-gray-400">
+                                        {entry ? <span className="font-mono">{entry.pct.toFixed(1)}%</span> : "—"}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          {allValues.length > 10 && <p className="text-xs text-gray-600 mt-2">Showing 10 of {allValues.length} values</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {catKeys.length > 6 && <p className="text-xs text-gray-600">Showing 6 of {catKeys.length} categorical variables</p>}
+                </div>
+              );
+            }
+
+            {/* ── Legacy type fallbacks (purchase_interest, concept_appeal, etc.) ── */}
             if (type === "purchase_interest" || type === "concept_appeal") {
               const entries = Object.entries(data).filter(([k]) => k !== "_meta");
               const maxVal = Math.max(...entries.map(([, v]) => Number(v) || 0), 1);
@@ -455,78 +720,7 @@ function AnalysisResults({ runId }: { runId: string }) {
               );
             }
 
-            if (type === "cross_tabulation") {
-              const segMeans = data.segment_means as Record<string, Record<string, number>> || {};
-              const modMeans = data.model_means as Record<string, Record<string, number>> || {};
-              const keyVars = ["Q1", "Q2", "Q7", "Q0b", "Q5_cost", "Q5_hoa", "Q5_permit"];
-              return (
-                <div key={i} className="space-y-4 mb-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <StatCard label="Respondents" value={data.total_respondents || 0} />
-                    <StatCard label="Attention Pass" value={`${((data.attention_check_pass_rate || 0) * 100).toFixed(0)}%`} />
-                  </div>
-                  <SectionHeader>Segment Comparison (Key Variables)</SectionHeader>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="text-gray-400 border-b border-gray-700">
-                          <th className="text-left py-2 pr-2">Variable</th>
-                          {Object.keys(segMeans).map(seg => (
-                            <th key={seg} className="text-center py-2 px-2">{seg}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {keyVars.map(v => (
-                          <tr key={v} className="border-b border-gray-800">
-                            <td className="py-1.5 pr-2 text-gray-300 font-mono">{v}</td>
-                            {Object.entries(segMeans).map(([seg, vals]) => {
-                              const val = vals[v] ?? 0;
-                              const bg = val >= 4 ? "text-emerald-400" : val >= 3 ? "text-yellow-400" : "text-red-400";
-                              return <td key={seg} className={`text-center py-1.5 px-2 font-bold ${bg}`}>{val.toFixed(2)}</td>;
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <SectionHeader>Model Means</SectionHeader>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {Object.entries(modMeans).map(([model, vals]) => (
-                      <div key={model} className="bg-gray-800/40 border border-gray-700 rounded-lg p-3">
-                        <p className="text-sm font-medium text-white mb-2">{model}</p>
-                        <div className="space-y-1">
-                          {keyVars.map(v => (
-                            <div key={v} className="flex justify-between text-xs">
-                              <span className="text-gray-400 font-mono">{v}</span>
-                              <span className="text-white font-bold">{(vals[v] ?? 0).toFixed(2)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            }
-
-            if (type === "model_agreement" || type === "model_comparison") {
-              return (
-                <div key={i} className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 mb-3">
-                  {item.group_by && <p className="text-xs text-gray-500 mb-2">{item.group_by}</p>}
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {Object.entries(data).slice(0, 9).map(([k, v]) => (
-                      <div key={k} className="text-center">
-                        <div className="text-lg font-bold text-white">{typeof v === "number" ? (v > 1 ? v.toFixed(1) : (v * 100).toFixed(0) + "%") : String(v)}</div>
-                        <div className="text-xs text-gray-400">{k.replace(/_/g, " ")}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            }
-
-            // Generic fallback: render as key-value
+            {/* ── Generic fallback ── */}
             return (
               <div key={i} className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 mb-3">
                 {item.group_by && <p className="text-xs text-gray-500 mb-2">{item.group_by}</p>}
