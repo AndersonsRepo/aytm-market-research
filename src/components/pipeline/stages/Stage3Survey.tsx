@@ -67,7 +67,7 @@ export function Stage3Survey({ runId }: { runId: string }) {
         <StatCard label="Model Variants" value={designs.length} />
         <StatCard label="Avg Questions"
           value={designs.length > 0 ? Math.round(designs.reduce((s, d) => s + (d.total_questions || 0), 0) / designs.length) : 0} />
-        <StatCard label="Est. Duration"
+        <StatCard label="Est. Survey Time"
           value={`${designs.length > 0 ? Math.round(designs.reduce((s, d) => s + (d.estimated_duration_minutes || 0), 0) / designs.length) : 0}m`} />
       </div>
 
@@ -160,7 +160,7 @@ export function Stage3Survey({ runId }: { runId: string }) {
                   </div>
                   <div className="text-xs text-gray-400 space-y-1 mb-2">
                     <div>Questions: <span className="text-white font-mono">{d.total_questions || "—"}</span></div>
-                    <div>Duration: <span className="text-white font-mono">{d.estimated_duration_minutes || "—"}m</span></div>
+                    <div>Est. Survey Time: <span className="text-white font-mono">{d.estimated_duration_minutes || "—"}m</span></div>
                   </div>
                   {Array.isArray(sections) && sections.length > 0 && (
                     <div className="space-y-0.5">
