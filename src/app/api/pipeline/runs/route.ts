@@ -6,7 +6,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("pipeline_runs")
-    .select("id, mode, status, current_stage, started_at, completed_at")
+    .select("id, mode, status, current_stage, started_at, completed_at, total_cost")
     .order("started_at", { ascending: false })
     .limit(10);
 

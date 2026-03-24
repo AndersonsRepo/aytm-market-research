@@ -6,12 +6,11 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  MODELS,
   MODEL_IDS,
   MODEL_LABELS,
   MAX_CONCURRENT_API_CALLS,
 } from '@/lib/pipeline/constants';
-import { callOpenRouter, parseJsonResponse } from '@/lib/pipeline/openrouter';
+import { callOpenRouterWithUsage, parseJsonResponse, estimateCost } from '@/lib/pipeline/openrouter';
 
 // ─── Progress Helper ──────────────────────────────────────────────────────
 
@@ -172,6 +171,9 @@ export async function runStage3(
 ) {
   await updateProgress(supabase, runId, 0, 'Starting survey design...');
 
+  let totalTokens = 0;
+  let totalCost = 0;
+
   // Fetch interview themes from this run
   const { data: themes, error: themesError } = await supabase
     .from('interview_themes')
@@ -217,12 +219,15 @@ export async function runStage3(
     );
 
     try {
-      const raw = await callOpenRouter(apiKey, modelId, system, user, {
+      const result = await callOpenRouterWithUsage(apiKey, modelId, system, user, {
         temperature: 0.4,
         maxTokens: 6000,
       });
 
-      const parsed = parseJsonResponse<Record<string, unknown>>(raw);
+      totalTokens += result.usage.total_tokens;
+      totalCost += estimateCost(modelId, result.usage);
+
+      const parsed = parseJsonResponse<Record<string, unknown>>(result.content);
       const sections = (parsed.sections as SurveyDesignResult['sections']) || [];
 
       // Count questions
@@ -313,5 +318,7 @@ export async function runStage3(
     fullCoverageSections: coverage.filter(
       (c) => c.modelsIncluding.length === designs.length,
     ).length,
+    totalTokens,
+    totalCost,
   };
 }

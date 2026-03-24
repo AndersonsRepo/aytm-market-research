@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+interface StageResultWithCost {
+  totalTokens?: number;
+  totalCost?: number;
+  [key: string]: unknown;
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ stage: string }> }
@@ -45,9 +51,13 @@ export async function POST(
       6: (await import("@/lib/pipeline/stage6")).runStage6,
     };
 
-    const result = await runners[stageNum](supabase, runId, openrouterKey);
+    const result = (await runners[stageNum](supabase, runId, openrouterKey)) as StageResultWithCost;
 
-    // Mark stage as completed
+    // Extract cost data if returned by the stage
+    const tokens = result?.totalTokens ?? 0;
+    const cost = result?.totalCost ?? 0;
+
+    // Mark stage as completed with cost data
     await supabase
       .from("stage_progress")
       .update({
@@ -55,6 +65,8 @@ export async function POST(
         progress_pct: 100,
         completed_at: new Date().toISOString(),
         message: "Stage completed successfully",
+        ...(tokens > 0 ? { tokens_used: tokens } : {}),
+        ...(cost > 0 ? { cost_estimate: cost } : {}),
       })
       .eq("run_id", runId)
       .eq("stage", stageNum);
@@ -65,13 +77,26 @@ export async function POST(
       .update({ current_stage: stageNum })
       .eq("id", runId);
 
-    // If stage 6, mark pipeline as completed
+    // If stage 6, mark pipeline as completed and aggregate total cost
     if (stageNum === 6) {
+      // Sum all stage costs for this run
+      const { data: allStages } = await supabase
+        .from("stage_progress")
+        .select("cost_estimate")
+        .eq("run_id", runId);
+
+      const totalCost = (allStages || []).reduce(
+        (sum: number, s: { cost_estimate: string | number | null }) =>
+          sum + (parseFloat(String(s.cost_estimate)) || 0),
+        0
+      );
+
       await supabase
         .from("pipeline_runs")
         .update({
           status: "completed",
           completed_at: new Date().toISOString(),
+          ...(totalCost > 0 ? { total_cost: totalCost } : {}),
         })
         .eq("id", runId);
     }

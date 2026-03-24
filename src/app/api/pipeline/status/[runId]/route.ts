@@ -12,7 +12,7 @@ export async function GET(
     supabase.from("pipeline_runs").select("*").eq("id", runId).single(),
     supabase
       .from("stage_progress")
-      .select("*")
+      .select("stage, status, progress_pct, message, error_message, started_at, completed_at, tokens_used, cost_estimate")
       .eq("run_id", runId)
       .order("stage"),
   ]);

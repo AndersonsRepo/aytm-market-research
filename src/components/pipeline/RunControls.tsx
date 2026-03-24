@@ -144,7 +144,7 @@ export function RunControls({ mode, onStart, onReset, onAutoRun, isAutoRunning }
               </button>
             </div>
             <p className="text-xs text-gray-600 text-center">
-              Estimated cost: ~$0.10 per full pipeline run &middot; Uses GPT-4.1-mini, Gemini-2.5-Flash, Claude-Sonnet-4.6
+              Estimated cost: ~$0.50–$1.00 per full pipeline run &middot; Uses GPT-4.1-mini, Gemini-2.5-Flash, Claude-Sonnet-4.6
             </p>
           </div>
         </div>

@@ -24,7 +24,7 @@ import {
   VARIATION_SEEDS,
   FIRST_NAMES,
 } from "@/lib/pipeline/constants";
-import { callOpenRouter, parseJsonResponse } from "@/lib/pipeline/openrouter";
+import { callOpenRouterWithUsage, parseJsonResponse, estimateCost } from "@/lib/pipeline/openrouter";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -256,6 +256,8 @@ interface GeneratedResponse {
   segmentId: number;
   segmentName: string;
   responses: Record<string, string | number | string[]>;
+  tokens: number;
+  cost: number;
 }
 
 async function generateOne(
@@ -269,8 +271,8 @@ async function generateOne(
   const config = getRespondentConfig(segment, respondentIndex, modelId);
   const systemPrompt = buildSystemPrompt(config);
 
-  const raw = await callOpenRouter(apiKey, modelId, systemPrompt, userPrompt);
-  const parsed = parseJsonResponse(raw);
+  const result = await callOpenRouterWithUsage(apiKey, modelId, systemPrompt, userPrompt);
+  const parsed = parseJsonResponse(result.content);
   const validated = validateResponse(parsed, config);
 
   return {
@@ -279,6 +281,8 @@ async function generateOne(
     segmentId: segment.id,
     segmentName: segment.name,
     responses: validated,
+    tokens: result.usage.total_tokens,
+    cost: estimateCost(modelId, result.usage),
   };
 }
 
@@ -290,7 +294,7 @@ export async function runStage4(
   supabase: SupabaseClient,
   runId: string,
   apiKey: string
-): Promise<Stage4Result> {
+): Promise<Stage4Result & { totalTokens: number; totalCost: number }> {
   const userPrompt = buildUserPrompt();
 
   // Build task list: model × segment × respondent_index
@@ -344,10 +348,14 @@ export async function runStage4(
   // Collect successful results
   const results: GeneratedResponse[] = [];
   const errors: string[] = [];
+  let totalTokens = 0;
+  let totalCost = 0;
 
   for (const r of settled) {
     if (r.status === "fulfilled") {
       results.push(r.value);
+      totalTokens += r.value.tokens;
+      totalCost += r.value.cost;
     } else {
       errors.push(
         r.reason instanceof Error ? r.reason.message : String(r.reason)
@@ -399,5 +407,7 @@ export async function runStage4(
       responses: r.responses,
     })),
     respondentCount: results.length,
+    totalTokens,
+    totalCost,
   };
 }

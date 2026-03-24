@@ -11,7 +11,6 @@ import type {
   InterviewQuestionKey,
 } from '@/lib/pipeline/types';
 import {
-  MODELS,
   MODEL_IDS,
   MODEL_LABELS,
   INTERVIEW_PERSONAS,
@@ -20,7 +19,7 @@ import {
   EMOTION_TAXONOMY,
   MAX_CONCURRENT_API_CALLS,
 } from '@/lib/pipeline/constants';
-import { callOpenRouter, parseJsonResponse } from '@/lib/pipeline/openrouter';
+import { callOpenRouterWithUsage, parseJsonResponse, estimateCost } from '@/lib/pipeline/openrouter';
 import { vaderSentiment } from '@/lib/pipeline/vader';
 
 // ─── Progress Helper ──────────────────────────────────────────────────────
@@ -74,6 +73,16 @@ async function withConcurrency<T>(
   );
   await Promise.all(workers);
   return results;
+}
+
+// ─── Shared cost accumulator ──────────────────────────────────────────────
+
+let _totalTokens = 0;
+let _totalCost = 0;
+
+function trackUsage(model: string, usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) {
+  _totalTokens += usage.total_tokens;
+  _totalCost += estimateCost(model, usage);
 }
 
 // ─── Part A: Interview Generation ─────────────────────────────────────────
@@ -155,7 +164,7 @@ async function generateInterview(
   modelId: string,
   persona: InterviewPersona,
 ): Promise<GeneratedInterview> {
-  const raw = await callOpenRouter(
+  const result = await callOpenRouterWithUsage(
     apiKey,
     modelId,
     buildPersonaSystemPrompt(persona),
@@ -163,7 +172,9 @@ async function generateInterview(
     { temperature: 0.8, maxTokens: 3000 },
   );
 
-  const parsed = parseJsonResponse(raw);
+  trackUsage(modelId, result.usage);
+
+  const parsed = parseJsonResponse(result.content);
   const responses = validateResponses(parsed);
   const modelLabel = MODEL_LABELS[modelId];
 
@@ -235,24 +246,26 @@ IQ7 (Barriers & drivers): ${iq7}
 
 Classify the emotional tone.`;
 
-  const raw = await callOpenRouter(apiKey, 'openai/gpt-4.1-mini', system, user, {
+  const result = await callOpenRouterWithUsage(apiKey, 'openai/gpt-4.1-mini', system, user, {
     temperature: 0.3,
     maxTokens: 300,
   });
 
-  const result = parseJsonResponse<EmotionClassification>(raw);
+  trackUsage('openai/gpt-4.1-mini', result.usage);
+
+  const parsed = parseJsonResponse<EmotionClassification>(result.content);
 
   // Validate against taxonomy
   const validEmotions = EMOTION_TAXONOMY as readonly string[];
-  if (!validEmotions.includes(result.primary_emotion)) {
-    result.primary_emotion = 'pragmatism';
+  if (!validEmotions.includes(parsed.primary_emotion)) {
+    parsed.primary_emotion = 'pragmatism';
   }
-  if (result.secondary_emotion && !validEmotions.includes(result.secondary_emotion)) {
-    result.secondary_emotion = null;
+  if (parsed.secondary_emotion && !validEmotions.includes(parsed.secondary_emotion)) {
+    parsed.secondary_emotion = null;
   }
-  result.intensity = Math.max(1, Math.min(5, Math.round(result.intensity ?? 3)));
+  parsed.intensity = Math.max(1, Math.min(5, Math.round(parsed.intensity ?? 3)));
 
-  return result;
+  return parsed;
 }
 
 async function extractThemes(
@@ -296,12 +309,14 @@ Return a JSON object with:
 
 Identify 4-8 themes based on observed patterns.`;
 
-  const raw = await callOpenRouter(apiKey, 'openai/gpt-4.1-mini', system, user, {
+  const result = await callOpenRouterWithUsage(apiKey, 'openai/gpt-4.1-mini', system, user, {
     temperature: 0.3,
     maxTokens: 4000,
   });
 
-  return parseJsonResponse(raw);
+  trackUsage('openai/gpt-4.1-mini', result.usage);
+
+  return parseJsonResponse(result.content);
 }
 
 // ─── Main Stage Function ──────────────────────────────────────────────────
@@ -311,6 +326,10 @@ export async function runStage2(
   runId: string,
   apiKey: string,
 ) {
+  // Reset accumulators
+  _totalTokens = 0;
+  _totalCost = 0;
+
   await updateProgress(supabase, runId, 0, 'Starting consumer interviews...');
 
   // ── Part A: Generate 30 interviews ────────────────────────────────────
@@ -443,5 +462,7 @@ export async function runStage2(
       negative: sentimentResults.filter((s) => s.label === 'Negative').length,
     },
     themeCount: themes.length,
+    totalTokens: _totalTokens,
+    totalCost: _totalCost,
   };
 }

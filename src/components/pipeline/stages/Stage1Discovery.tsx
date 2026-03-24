@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { SectionHeader, StatCard, LoadingSpinner, Tag } from "../ui";
+import { MarkdownText } from "../MarkdownText";
 
 export function Stage1Discovery({ runId }: { runId: string }) {
   const [brief, setBrief] = useState<any>(null);
@@ -128,9 +129,9 @@ export function Stage1Discovery({ runId }: { runId: string }) {
                   return (
                     <div key={m} className="bg-gray-900/50 border border-gray-700 rounded-lg p-3">
                       <Tag>{(m as string).split("/").pop() || m}</Tag>
-                      <p className="text-xs text-gray-300 mt-2 leading-relaxed">
-                        {r ? r.response : "No response"}
-                      </p>
+                      <div className="mt-2">
+                        {r ? <MarkdownText text={r.response} /> : <p className="text-xs text-gray-500">No response</p>}
+                      </div>
                     </div>
                   );
                 })}

@@ -20,6 +20,10 @@ interface StageState {
   status: StageStatus;
   progress: number;
   message: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  tokensUsed: number;
+  costEstimate: number;
 }
 
 interface PipelineRun {
@@ -29,7 +33,18 @@ interface PipelineRun {
   current_stage: number;
   started_at: string;
   completed_at: string | null;
+  total_cost: number | null;
 }
+
+const defaultStageState = (): StageState => ({
+  status: "locked",
+  progress: 0,
+  message: "",
+  startedAt: null,
+  completedAt: null,
+  tokensUsed: 0,
+  costEstimate: 0,
+});
 
 export function PipelineLayout() {
   const [runId, setRunId] = useState<string | null>(null);
@@ -37,11 +52,13 @@ export function PipelineLayout() {
   const [apiKey, setApiKey] = useState("");
   const [isAutoRunning, setIsAutoRunning] = useState(false);
   const [stages, setStages] = useState<Record<number, StageState>>(
-    Object.fromEntries(STAGES.map(s => [s.id, { status: "locked" as StageStatus, progress: 0, message: "" }]))
+    Object.fromEntries(STAGES.map(s => [s.id, defaultStageState()]))
   );
   const [expandedStage, setExpandedStage] = useState<number | null>(null);
   const [previousRuns, setPreviousRuns] = useState<PipelineRun[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [runStartedAt, setRunStartedAt] = useState<string | null>(null);
+  const [runCompletedAt, setRunCompletedAt] = useState<string | null>(null);
   const autoRunTriggered = useRef(false);
 
   // Fetch previous runs on mount
@@ -73,6 +90,10 @@ export function PipelineLayout() {
       status: mappedStatus,
       progress: progress.progress_pct,
       message: progress.message || "",
+      startedAt: progress.started_at || null,
+      completedAt: progress.completed_at || null,
+      tokensUsed: progress.tokens_used ?? 0,
+      costEstimate: progress.cost_estimate ? parseFloat(String(progress.cost_estimate)) : 0,
     });
 
     if (mappedStatus === "completed" && progress.stage < 6) {
@@ -89,6 +110,8 @@ export function PipelineLayout() {
   const handleStart = useCallback(async (selectedMode: "demo" | "live", key?: string) => {
     setMode(selectedMode);
     if (key) setApiKey(key);
+    setRunStartedAt(new Date().toISOString());
+    setRunCompletedAt(null);
 
     try {
       const res = await fetch("/api/pipeline/start", {
@@ -117,7 +140,7 @@ export function PipelineLayout() {
 
   const handleRunStage = useCallback(async (stageId: number) => {
     if (!runId) return;
-    updateStage(stageId, { status: "running", progress: 0, message: "Starting..." });
+    updateStage(stageId, { status: "running", progress: 0, message: "Starting...", startedAt: new Date().toISOString() });
 
     try {
       const res = await fetch(`/api/pipeline/${stageId}`, {
@@ -132,11 +155,13 @@ export function PipelineLayout() {
         return false;
       }
 
-      updateStage(stageId, { status: "completed", progress: 100, message: "Complete" });
+      updateStage(stageId, { status: "completed", progress: 100, message: "Complete", completedAt: new Date().toISOString() });
       setExpandedStage(stageId);
 
       if (stageId < 6) {
         updateStage(stageId + 1, { status: "ready" });
+      } else {
+        setRunCompletedAt(new Date().toISOString());
       }
       return true;
     } catch (err) {
@@ -180,6 +205,8 @@ export function PipelineLayout() {
     setRunId(run.id);
     setMode(run.mode as "demo" | "live");
     setShowHistory(false);
+    setRunStartedAt(run.started_at);
+    setRunCompletedAt(run.completed_at);
 
     // Fetch stage progress for this run
     try {
@@ -199,12 +226,16 @@ export function PipelineLayout() {
             status: statusMap[sp.status] || "locked",
             progress: sp.progress_pct || 0,
             message: sp.message || sp.error_message || "",
+            startedAt: sp.started_at || null,
+            completedAt: sp.completed_at || null,
+            tokensUsed: sp.tokens_used ?? 0,
+            costEstimate: sp.cost_estimate ? parseFloat(String(sp.cost_estimate)) : 0,
           };
         }
         // If a stage errored or is pending, make the next non-completed stage "ready"
         for (let i = 1; i <= 6; i++) {
           if (!newStages[i]) {
-            newStages[i] = { status: "locked", progress: 0, message: "" };
+            newStages[i] = defaultStageState();
           }
         }
         setStages(newStages);
@@ -227,9 +258,11 @@ export function PipelineLayout() {
     setApiKey("");
     setExpandedStage(null);
     setIsAutoRunning(false);
+    setRunStartedAt(null);
+    setRunCompletedAt(null);
     autoRunTriggered.current = false;
     setStages(
-      Object.fromEntries(STAGES.map(s => [s.id, { status: "locked" as StageStatus, progress: 0, message: "" }]))
+      Object.fromEntries(STAGES.map(s => [s.id, defaultStageState()]))
     );
     // Refresh history
     fetch("/api/pipeline/runs")
@@ -240,10 +273,27 @@ export function PipelineLayout() {
 
   const hasReadyStage = Object.values(stages).some(s => s.status === "ready");
 
+  // Computed values
+  const totalCost = Object.values(stages).reduce((sum, s) => sum + s.costEstimate, 0);
+  const totalTokens = Object.values(stages).reduce((sum, s) => sum + s.tokensUsed, 0);
+  const completedStages = Object.values(stages).filter(s => s.status === "completed").length;
+  const allCompleted = completedStages === 6;
+
   const formatDate = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
       " " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  };
+
+  const formatDuration = (startIso: string | null, endIso: string | null) => {
+    if (!startIso) return null;
+    const start = new Date(startIso).getTime();
+    const end = endIso ? new Date(endIso).getTime() : Date.now();
+    const secs = Math.round((end - start) / 1000);
+    if (secs < 60) return `${secs}s`;
+    const mins = Math.floor(secs / 60);
+    const remSecs = secs % 60;
+    return `${mins}m ${remSecs}s`;
   };
 
   return (
@@ -307,6 +357,16 @@ export function PipelineLayout() {
                     <span className="text-xs text-gray-500">
                       {run.current_stage}/6 stages
                     </span>
+                    {run.total_cost != null && run.total_cost > 0 && (
+                      <span className="text-xs text-emerald-500 font-mono">
+                        ${Number(run.total_cost).toFixed(2)}
+                      </span>
+                    )}
+                    {run.started_at && run.completed_at && (
+                      <span className="text-xs text-gray-500 font-mono">
+                        {formatDuration(run.started_at, run.completed_at)}
+                      </span>
+                    )}
                     <span className="text-xs text-gray-600">
                       {formatDate(run.started_at)}
                     </span>
@@ -342,7 +402,19 @@ export function PipelineLayout() {
             <span className="w-px h-3 bg-gray-700" />
             <span>Mode: <span className="text-gray-400">{mode}</span></span>
             <span className="w-px h-3 bg-gray-700" />
-            <span>Est. cost: <span className="text-gray-400">~$0.10</span></span>
+            <span>Duration: <span className="text-gray-400 font-mono">{formatDuration(runStartedAt, runCompletedAt) || "..."}</span></span>
+            {totalCost > 0 && (
+              <>
+                <span className="w-px h-3 bg-gray-700" />
+                <span>Cost: <span className="text-emerald-400 font-mono">${totalCost.toFixed(4)}</span></span>
+              </>
+            )}
+            {totalTokens > 0 && (
+              <>
+                <span className="w-px h-3 bg-gray-700" />
+                <span>Tokens: <span className="text-gray-400 font-mono">{totalTokens.toLocaleString()}</span></span>
+              </>
+            )}
           </div>
         </div>
       )}

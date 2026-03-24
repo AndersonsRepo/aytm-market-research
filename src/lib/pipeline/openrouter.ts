@@ -22,20 +22,28 @@ export interface CallOpenRouterOptions {
   timeoutMs?: number;
 }
 
+export interface OpenRouterUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+export interface OpenRouterResult {
+  content: string;
+  usage: OpenRouterUsage;
+}
+
 /**
  * Call the OpenRouter API with retry logic and exponential backoff.
- *
- * - Sets response_format: json_object for OpenAI and Anthropic models (not Gemini)
- * - Retries up to MAX_RETRIES (3) times with exponential backoff
- * - 120s timeout per request
+ * Returns both content and token usage metadata.
  */
-export async function callOpenRouter(
+export async function callOpenRouterWithUsage(
   apiKey: string,
   model: string,
   systemPrompt: string,
   userPrompt: string,
   options?: CallOpenRouterOptions,
-): Promise<string> {
+): Promise<OpenRouterResult> {
   const temperature = options?.temperature ?? DEFAULT_TEMPERATURE;
   const maxTokens = options?.maxTokens ?? DEFAULT_MAX_TOKENS;
   const timeoutMs = options?.timeoutMs ?? REQUEST_TIMEOUT_MS;
@@ -87,7 +95,10 @@ export async function callOpenRouter(
         throw new Error('OpenRouter returned empty response');
       }
 
-      return data.choices[0].message.content;
+      return {
+        content: data.choices[0].message.content,
+        usage: data.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+      };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
@@ -105,6 +116,20 @@ export async function callOpenRouter(
   throw new Error(
     `OpenRouter call failed after ${MAX_RETRIES} attempts: ${lastError?.message}`,
   );
+}
+
+/**
+ * Backward-compatible wrapper: returns just the content string.
+ */
+export async function callOpenRouter(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  options?: CallOpenRouterOptions,
+): Promise<string> {
+  const result = await callOpenRouterWithUsage(apiKey, model, systemPrompt, userPrompt, options);
+  return result.content;
 }
 
 /**
@@ -184,6 +209,23 @@ export function createOpenRouterClient(config: OpenRouterConfig) {
         ...options,
       }),
   };
+}
+
+// --- Cost Estimation ---
+
+// Approximate cost per 1M tokens (input/output) as of March 2026
+const MODEL_COSTS: Record<string, { input: number; output: number }> = {
+  'openai/gpt-4.1-mini': { input: 0.40, output: 1.60 },
+  'google/gemini-2.5-flash': { input: 0.15, output: 0.60 },
+  'anthropic/claude-sonnet-4.6': { input: 3.00, output: 15.00 },
+};
+
+/** Estimate cost in USD from token usage and model ID */
+export function estimateCost(model: string, usage: OpenRouterUsage): number {
+  const rates = MODEL_COSTS[model] ?? { input: 1.00, output: 3.00 };
+  return (
+    (usage.prompt_tokens * rates.input + usage.completion_tokens * rates.output) / 1_000_000
+  );
 }
 
 // --- Helpers ---

@@ -3,11 +3,15 @@
 import { useEffect, useCallback, useRef } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
-interface StageProgress {
+export interface StageProgress {
   stage: number;
   status: string;
   progress_pct: number;
   message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  tokens_used: number | null;
+  cost_estimate: number | null;
 }
 
 export function useRealtimeProgress(

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { Bar, SectionHeader, Tag, StatCard, LoadingSpinner } from "./ui";
+import { MarkdownText } from "./MarkdownText";
 
 interface Stage {
   id: number;
@@ -15,6 +16,10 @@ interface StageState {
   status: "locked" | "ready" | "running" | "completed" | "error";
   progress: number;
   message: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  tokensUsed: number;
+  costEstimate: number;
 }
 
 interface StageCardProps {
@@ -113,7 +118,7 @@ function DiscoveryResults({ runId }: { runId: string }) {
                         const r = qResponses.find(r => r.model === m);
                         return (
                           <td key={m} className="py-2 px-3 text-gray-400 text-xs max-w-xs">
-                            {r ? (r.response.length > 120 ? r.response.slice(0, 120) + "..." : r.response) : "—"}
+                            {r ? <MarkdownText text={r.response.length > 200 ? r.response.slice(0, 200) + "..." : r.response} /> : "—"}
                           </td>
                         );
                       })}
@@ -694,7 +699,7 @@ const STAGES_WITH_DETAIL_VIEW = new Set([1, 2, 3, 4, 5, 6]);
 // ─── Main StageCard ─────────────────────────────────────────────────────────
 
 export function StageCard({ stage, state, isExpanded, runId, onRun, onToggle }: StageCardProps) {
-  const { status, progress, message } = state;
+  const { status, progress, message, startedAt, completedAt, tokensUsed, costEstimate } = state;
 
   const borderColor: Record<string, string> = {
     locked: "border-gray-800",
@@ -755,6 +760,26 @@ export function StageCard({ stage, state, isExpanded, runId, onRun, onToggle }: 
             )}
             {status === "error" && message && (
               <p className="text-red-400 text-xs mt-1">{message}</p>
+            )}
+            {status === "completed" && startedAt && (
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-xs text-gray-500 font-mono">
+                  {(() => {
+                    const start = new Date(startedAt).getTime();
+                    const end = completedAt ? new Date(completedAt).getTime() : Date.now();
+                    const secs = Math.round((end - start) / 1000);
+                    if (secs < 60) return secs + "s";
+                    const m = Math.floor(secs / 60);
+                    return m + "m " + (secs % 60) + "s";
+                  })()}
+                </span>
+                {tokensUsed > 0 && (
+                  <span className="text-xs text-gray-600">{tokensUsed.toLocaleString()} tokens</span>
+                )}
+                {costEstimate > 0 && (
+                  <span className="text-xs text-emerald-600 font-mono">${costEstimate.toFixed(4)}</span>
+                )}
+              </div>
             )}
           </div>
         </div>

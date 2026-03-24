@@ -6,14 +6,13 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  MODELS,
   MODEL_IDS,
   MODEL_LABELS,
   DISCOVERY_QUESTIONS,
   DISCOVERY_SYSTEM_PROMPT,
   MAX_CONCURRENT_API_CALLS,
 } from '@/lib/pipeline/constants';
-import { callOpenRouter, parseJsonResponse } from '@/lib/pipeline/openrouter';
+import { callOpenRouterWithUsage, parseJsonResponse, estimateCost } from '@/lib/pipeline/openrouter';
 
 // ─── Progress Helper ──────────────────────────────────────────────────────
 
@@ -85,19 +84,24 @@ export async function runStage1(
   const questionEntries = Object.entries(DISCOVERY_QUESTIONS);
   const totalCalls = questionEntries.length * MODEL_IDS.length; // 10 × 3 = 30
   let completedCalls = 0;
+  let totalTokens = 0;
+  let totalCost = 0;
 
   // Build task list: one per (question, model) pair
   const tasks = questionEntries.flatMap(([key, text]) =>
     MODEL_IDS.map((modelId) => async () => {
       const modelLabel = MODEL_LABELS[modelId];
 
-      const response = await callOpenRouter(
+      const result = await callOpenRouterWithUsage(
         apiKey,
         modelId,
         DISCOVERY_SYSTEM_PROMPT,
         text,
         { temperature: 0.7, maxTokens: 2000 },
       );
+
+      totalTokens += result.usage.total_tokens;
+      totalCost += estimateCost(modelId, result.usage);
 
       // Persist to Supabase
       await supabase.from('discovery_responses').insert({
@@ -106,7 +110,7 @@ export async function runStage1(
         question_key: key,
         question_label: key,
         question_text: text,
-        response,
+        response: result.content,
       });
 
       completedCalls++;
@@ -118,7 +122,7 @@ export async function runStage1(
         `Discovery ${completedCalls}/${totalCalls} (${modelLabel} — ${key})`,
       );
 
-      return { key, modelId, modelLabel, response };
+      return { key, modelId, modelLabel, response: result.content };
     }),
   );
 
@@ -155,7 +159,7 @@ export async function runStage1(
 
   const synthesisUser = `Here are expert analyses of the Tahoe Mini from 3 different AI models across 10 strategic questions:\n${synthesisInput}\n\nSynthesize into a unified research brief JSON.`;
 
-  const synthesisRaw = await callOpenRouter(
+  const synthesisResult = await callOpenRouterWithUsage(
     apiKey,
     'openai/gpt-4.1-mini',
     synthesisSystem,
@@ -163,7 +167,10 @@ export async function runStage1(
     { temperature: 0.3, maxTokens: 3000 },
   );
 
-  const brief = parseJsonResponse(synthesisRaw);
+  totalTokens += synthesisResult.usage.total_tokens;
+  totalCost += estimateCost('openai/gpt-4.1-mini', synthesisResult.usage);
+
+  const brief = parseJsonResponse(synthesisResult.content);
 
   // Persist brief
   const modelsUsed = MODEL_IDS.map((id) => MODEL_LABELS[id]);
@@ -179,5 +186,7 @@ export async function runStage1(
     totalResponses: completedCalls,
     brief,
     modelsUsed,
+    totalTokens,
+    totalCost,
   };
 }
