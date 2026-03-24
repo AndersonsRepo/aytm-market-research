@@ -22,6 +22,15 @@ interface StageState {
   message: string;
 }
 
+interface PipelineRun {
+  id: string;
+  mode: string;
+  status: string;
+  current_stage: number;
+  started_at: string;
+  completed_at: string | null;
+}
+
 export function PipelineLayout() {
   const [runId, setRunId] = useState<string | null>(null);
   const [mode, setMode] = useState<"idle" | "demo" | "live">("idle");
@@ -31,7 +40,17 @@ export function PipelineLayout() {
     Object.fromEntries(STAGES.map(s => [s.id, { status: "locked" as StageStatus, progress: 0, message: "" }]))
   );
   const [expandedStage, setExpandedStage] = useState<number | null>(null);
+  const [previousRuns, setPreviousRuns] = useState<PipelineRun[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const autoRunTriggered = useRef(false);
+
+  // Fetch previous runs on mount
+  useEffect(() => {
+    fetch("/api/pipeline/runs")
+      .then(res => res.json())
+      .then(data => setPreviousRuns(data.runs || []))
+      .catch(() => {});
+  }, []);
 
   const updateStage = useCallback((stageId: number, update: Partial<StageState>) => {
     setStages(prev => ({
@@ -56,7 +75,6 @@ export function PipelineLayout() {
       message: progress.message || "",
     });
 
-    // When a stage completes via realtime, auto-unlock the next stage
     if (mappedStatus === "completed" && progress.stage < 6) {
       setStages(prev => {
         const next = progress.stage + 1;
@@ -117,7 +135,6 @@ export function PipelineLayout() {
       updateStage(stageId, { status: "completed", progress: 100, message: "Complete" });
       setExpandedStage(stageId);
 
-      // Unlock next stage
       if (stageId < 6) {
         updateStage(stageId + 1, { status: "ready" });
       }
@@ -131,7 +148,6 @@ export function PipelineLayout() {
   const handleAutoRun = useCallback(async () => {
     setIsAutoRunning(true);
     for (const stage of STAGES) {
-      // Skip already-completed stages
       const currentStages = await new Promise<Record<number, StageState>>(resolve => {
         setStages(prev => { resolve(prev); return prev; });
       });
@@ -146,9 +162,7 @@ export function PipelineLayout() {
 
   // Listen for auto-run event from RunControls
   useEffect(() => {
-    const handler = () => {
-      autoRunTriggered.current = true;
-    };
+    const handler = () => { autoRunTriggered.current = true; };
     window.addEventListener("pipeline-auto-run", handler);
     return () => window.removeEventListener("pipeline-auto-run", handler);
   }, []);
@@ -161,6 +175,52 @@ export function PipelineLayout() {
     }
   }, [mode, runId, handleAutoRun]);
 
+  // Load a previous run
+  const handleLoadRun = useCallback(async (run: PipelineRun) => {
+    setRunId(run.id);
+    setMode(run.mode as "demo" | "live");
+    setShowHistory(false);
+
+    // Fetch stage progress for this run
+    try {
+      const res = await fetch(`/api/pipeline/status/${run.id}`);
+      const data = await res.json();
+
+      if (data.stages) {
+        const newStages: Record<number, StageState> = {};
+        for (const sp of data.stages) {
+          const statusMap: Record<string, StageStatus> = {
+            pending: "locked",
+            running: "ready",
+            completed: "completed",
+            error: "error",
+          };
+          newStages[sp.stage] = {
+            status: statusMap[sp.status] || "locked",
+            progress: sp.progress_pct || 0,
+            message: sp.message || sp.error_message || "",
+          };
+        }
+        // If a stage errored or is pending, make the next non-completed stage "ready"
+        for (let i = 1; i <= 6; i++) {
+          if (!newStages[i]) {
+            newStages[i] = { status: "locked", progress: 0, message: "" };
+          }
+        }
+        setStages(newStages);
+      }
+
+      // Expand the last completed stage
+      const lastCompleted = data.stages
+        ?.filter((s: any) => s.status === "completed")
+        .map((s: any) => s.stage)
+        .sort((a: number, b: number) => b - a)[0];
+      setExpandedStage(lastCompleted || 1);
+    } catch {
+      console.error("Failed to load run status");
+    }
+  }, []);
+
   const handleReset = useCallback(() => {
     setRunId(null);
     setMode("idle");
@@ -171,9 +231,20 @@ export function PipelineLayout() {
     setStages(
       Object.fromEntries(STAGES.map(s => [s.id, { status: "locked" as StageStatus, progress: 0, message: "" }]))
     );
+    // Refresh history
+    fetch("/api/pipeline/runs")
+      .then(res => res.json())
+      .then(data => setPreviousRuns(data.runs || []))
+      .catch(() => {});
   }, []);
 
   const hasReadyStage = Object.values(stages).some(s => s.status === "ready");
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
+      " " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -195,6 +266,60 @@ export function PipelineLayout() {
         onAutoRun={mode === "live" && hasReadyStage ? handleAutoRun : undefined}
         isAutoRunning={isAutoRunning}
       />
+
+      {/* Previous runs — show when idle and runs exist */}
+      {mode === "idle" && previousRuns.length > 0 && (
+        <div className="mt-6 flex flex-col items-center">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="text-sm text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1"
+          >
+            <svg className={`w-3 h-3 transition-transform ${showHistory ? "rotate-90" : ""}`} fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+            </svg>
+            {previousRuns.length} previous run{previousRuns.length !== 1 ? "s" : ""}
+          </button>
+
+          {showHistory && (
+            <div className="mt-3 w-full max-w-lg space-y-2 animate-in slide-in-from-top-2 duration-200">
+              {previousRuns.map(run => (
+                <button
+                  key={run.id}
+                  onClick={() => handleLoadRun(run)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-gray-900 border border-gray-800 hover:border-gray-600 rounded-lg transition-colors text-left group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${
+                      run.status === "completed" ? "bg-green-500" :
+                      run.status === "error" ? "bg-red-500" :
+                      "bg-yellow-500"
+                    }`} />
+                    <div>
+                      <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
+                        {run.mode === "demo" ? "Demo" : "Live"} run
+                      </span>
+                      <span className="text-xs text-gray-600 ml-2">
+                        {run.id.slice(0, 8)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500">
+                      {run.current_stage}/6 stages
+                    </span>
+                    <span className="text-xs text-gray-600">
+                      {formatDate(run.started_at)}
+                    </span>
+                    <svg className="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-8 space-y-4">
         {STAGES.map((stage) => (
