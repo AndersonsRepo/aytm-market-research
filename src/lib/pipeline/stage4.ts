@@ -355,9 +355,10 @@ export async function runStage4(
     }
   }
 
-  if (results.length === 0) {
+  const minRequired = Math.ceil(totalTasks * 0.75);
+  if (results.length < minRequired) {
     throw new Error(
-      `All ${totalTasks} respondent generations failed. First error: ${errors[0]}`
+      `Only ${results.length}/${totalTasks} respondents generated (need ${minRequired}). First error: ${errors[0]}`
     );
   }
 

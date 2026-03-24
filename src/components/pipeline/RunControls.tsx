@@ -7,11 +7,13 @@ interface RunControlsProps {
   onStart: (mode: "demo" | "live", apiKey?: string) => void;
   onReset: () => void;
   onAutoRun?: () => void;
+  isAutoRunning?: boolean;
 }
 
-export function RunControls({ mode, onStart, onReset, onAutoRun }: RunControlsProps) {
+export function RunControls({ mode, onStart, onReset, onAutoRun, isAutoRunning }: RunControlsProps) {
   const [apiKey, setApiKey] = useState("");
   const [showKeyInput, setShowKeyInput] = useState(false);
+  const [autoRunOnStart, setAutoRunOnStart] = useState(true);
 
   if (mode !== "idle") {
     return (
@@ -19,16 +21,16 @@ export function RunControls({ mode, onStart, onReset, onAutoRun }: RunControlsPr
         <div className="inline-flex items-center gap-3 px-5 py-3 rounded-xl bg-gray-900 border border-gray-800">
           {/* Mode indicator */}
           <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${mode === "demo" ? "bg-green-500" : "bg-blue-500"} animate-pulse`} />
+            <div className={`w-2 h-2 rounded-full ${mode === "demo" ? "bg-green-500" : "bg-blue-500"} ${isAutoRunning ? "animate-pulse" : ""}`} />
             <span className="text-sm font-medium text-white">
-              {mode === "demo" ? "Demo Mode" : "Live Mode"}
+              {mode === "demo" ? "Demo Mode" : isAutoRunning ? "Running Full Pipeline..." : "Live Mode"}
             </span>
           </div>
 
           <span className="w-px h-5 bg-gray-700" />
 
-          {/* Auto-run button (live mode only when stages are ready) */}
-          {onAutoRun && (
+          {/* Auto-run button (live mode only when stages are ready and not already running) */}
+          {onAutoRun && !isAutoRunning && (
             <button
               onClick={onAutoRun}
               className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-lg transition-all shadow-lg shadow-purple-900/20"
@@ -36,13 +38,24 @@ export function RunControls({ mode, onStart, onReset, onAutoRun }: RunControlsPr
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              Auto-Run All
+              Run Remaining Stages
             </button>
+          )}
+
+          {isAutoRunning && (
+            <div className="flex items-center gap-2 px-3 py-1.5 text-sm text-purple-300">
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Auto-running...
+            </div>
           )}
 
           <button
             onClick={onReset}
-            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            disabled={isAutoRunning}
+            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
             Reset
           </button>
@@ -100,16 +113,38 @@ export function RunControls({ mode, onStart, onReset, onAutoRun }: RunControlsPr
                 className="flex-1 px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm font-mono placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                 onKeyDown={(e) => { if (e.key === "Enter" && apiKey) onStart("live", apiKey); }}
               />
+            </div>
+            {/* Auto-run toggle */}
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={autoRunOnStart}
+                onChange={(e) => setAutoRunOnStart(e.target.checked)}
+                className="w-4 h-4 rounded bg-gray-800 border-gray-600 text-purple-500 focus:ring-purple-500 focus:ring-offset-0"
+              />
+              <span className="text-sm text-gray-400">Run full pipeline automatically</span>
+            </label>
+            <div className="flex gap-2">
               <button
-                onClick={() => { if (apiKey) onStart("live", apiKey); }}
+                onClick={() => {
+                  if (apiKey) onStart(autoRunOnStart ? "live" : "live", apiKey);
+                  // Signal auto-run preference via a custom attribute on the event
+                  if (apiKey && autoRunOnStart) {
+                    // Small delay to let state settle, then trigger auto-run
+                    setTimeout(() => {
+                      const event = new CustomEvent("pipeline-auto-run");
+                      window.dispatchEvent(event);
+                    }, 500);
+                  }
+                }}
                 disabled={!apiKey}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-40 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-all shadow-lg shadow-purple-900/20"
               >
-                Begin
+                {autoRunOnStart ? "⚡ Run Full Pipeline" : "Begin (Stage by Stage)"}
               </button>
             </div>
             <p className="text-xs text-gray-600 text-center">
-              Estimated cost: ~$0.10 per full pipeline run &middot; Uses GPT-4.1-mini, Gemini-2.5-Flash, Claude-Sonnet-4
+              Estimated cost: ~$0.10 per full pipeline run &middot; Uses GPT-4.1-mini, Gemini-2.5-Flash, Claude-Sonnet-4.6
             </p>
           </div>
         </div>

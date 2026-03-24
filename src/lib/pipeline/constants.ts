@@ -769,7 +769,7 @@ export const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 export const MAX_RETRIES = 3;
 export const DEFAULT_TEMPERATURE = 0.8;
 export const DEFAULT_MAX_TOKENS = 3000;
-export const REQUEST_TIMEOUT_MS = 120_000;
+export const REQUEST_TIMEOUT_MS = 240_000;
 export const RESPONDENTS_PER_SEGMENT_PER_MODEL = 6;
 
 
@@ -780,7 +780,7 @@ export const MAX_CONCURRENT_API_CALLS = 5;
 export const ALL_LIKERT_KEYS = Object.keys(LIKERT_KEYS);
 
 export const SEGMENT_PROFILE_KEYS = [
-  'Q1', 'Q2', 'Q3', 'Q4',
+  'Q1', 'Q2',
   'Q6a', 'Q6b', 'Q6c', 'Q6d', 'Q6e',
   'Q7', 'Q8', 'Q9',
   'Q10', 'Q11', 'Q12',

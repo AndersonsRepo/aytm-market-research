@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { StageCard } from "./StageCard";
 import { RunControls } from "./RunControls";
 import { useRealtimeProgress } from "@/lib/hooks/useRealtimeProgress";
@@ -26,10 +26,12 @@ export function PipelineLayout() {
   const [runId, setRunId] = useState<string | null>(null);
   const [mode, setMode] = useState<"idle" | "demo" | "live">("idle");
   const [apiKey, setApiKey] = useState("");
+  const [isAutoRunning, setIsAutoRunning] = useState(false);
   const [stages, setStages] = useState<Record<number, StageState>>(
     Object.fromEntries(STAGES.map(s => [s.id, { status: "locked" as StageStatus, progress: 0, message: "" }]))
   );
   const [expandedStage, setExpandedStage] = useState<number | null>(null);
+  const autoRunTriggered = useRef(false);
 
   const updateStage = useCallback((stageId: number, update: Partial<StageState>) => {
     setStages(prev => ({
@@ -58,7 +60,6 @@ export function PipelineLayout() {
     if (mappedStatus === "completed" && progress.stage < 6) {
       setStages(prev => {
         const next = progress.stage + 1;
-        // Only unlock if next stage is still locked
         if (prev[next]?.status === "locked") {
           return { ...prev, [next]: { ...prev[next], status: "ready" } };
         }
@@ -81,7 +82,6 @@ export function PipelineLayout() {
       setRunId(data.runId);
 
       if (selectedMode === "demo") {
-        // In demo mode, seed data and mark all stages completed
         await fetch("/api/pipeline/seed", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -90,7 +90,6 @@ export function PipelineLayout() {
         STAGES.forEach(s => updateStage(s.id, { status: "completed", progress: 100 }));
         setExpandedStage(1);
       } else {
-        // In live mode, unlock stage 1
         updateStage(1, { status: "ready" });
       }
     } catch (err) {
@@ -112,7 +111,7 @@ export function PipelineLayout() {
       if (!res.ok) {
         const err = await res.json();
         updateStage(stageId, { status: "error", message: err.error || "Stage failed" });
-        return;
+        return false;
       }
 
       updateStage(stageId, { status: "completed", progress: 100, message: "Complete" });
@@ -122,27 +121,53 @@ export function PipelineLayout() {
       if (stageId < 6) {
         updateStage(stageId + 1, { status: "ready" });
       }
+      return true;
     } catch (err) {
       updateStage(stageId, { status: "error", message: String(err) });
+      return false;
     }
   }, [runId, apiKey, updateStage]);
 
   const handleAutoRun = useCallback(async () => {
+    setIsAutoRunning(true);
     for (const stage of STAGES) {
-      await handleRunStage(stage.id);
-      // Check if previous stage errored — need to read from latest state
+      // Skip already-completed stages
       const currentStages = await new Promise<Record<number, StageState>>(resolve => {
         setStages(prev => { resolve(prev); return prev; });
       });
-      if (currentStages[stage.id]?.status === "error") break;
+      if (currentStages[stage.id]?.status === "completed") continue;
+      if (currentStages[stage.id]?.status !== "ready" && stage.id !== 1) continue;
+
+      const success = await handleRunStage(stage.id);
+      if (!success) break;
     }
+    setIsAutoRunning(false);
   }, [handleRunStage]);
+
+  // Listen for auto-run event from RunControls
+  useEffect(() => {
+    const handler = () => {
+      autoRunTriggered.current = true;
+    };
+    window.addEventListener("pipeline-auto-run", handler);
+    return () => window.removeEventListener("pipeline-auto-run", handler);
+  }, []);
+
+  // Trigger auto-run when pipeline starts and auto-run was requested
+  useEffect(() => {
+    if (autoRunTriggered.current && mode === "live" && runId) {
+      autoRunTriggered.current = false;
+      handleAutoRun();
+    }
+  }, [mode, runId, handleAutoRun]);
 
   const handleReset = useCallback(() => {
     setRunId(null);
     setMode("idle");
     setApiKey("");
     setExpandedStage(null);
+    setIsAutoRunning(false);
+    autoRunTriggered.current = false;
     setStages(
       Object.fromEntries(STAGES.map(s => [s.id, { status: "locked" as StageStatus, progress: 0, message: "" }]))
     );
@@ -168,6 +193,7 @@ export function PipelineLayout() {
         onStart={handleStart}
         onReset={handleReset}
         onAutoRun={mode === "live" && hasReadyStage ? handleAutoRun : undefined}
+        isAutoRunning={isAutoRunning}
       />
 
       <div className="mt-8 space-y-4">
