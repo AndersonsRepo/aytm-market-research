@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+// Allow up to 300s (5min) for long-running stages (2 and 4 generate many LLM calls)
+export const maxDuration = 300;
+
 interface StageResultWithCost {
   totalTokens?: number;
   totalCost?: number;
