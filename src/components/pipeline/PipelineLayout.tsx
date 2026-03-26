@@ -97,14 +97,19 @@ export function PipelineLayout() {
       costEstimate: progress.cost_estimate ? parseFloat(String(progress.cost_estimate)) : 0,
     });
 
-    if (mappedStatus === "completed" && progress.stage < 6) {
-      setStages(prev => {
-        const next = progress.stage + 1;
-        if (prev[next]?.status === "locked") {
-          return { ...prev, [next]: { ...prev[next], status: "ready" } };
-        }
-        return prev;
-      });
+    if (mappedStatus === "completed") {
+      setExpandedStage(progress.stage);
+      if (progress.stage < 6) {
+        setStages(prev => {
+          const next = progress.stage + 1;
+          if (prev[next]?.status === "locked") {
+            return { ...prev, [next]: { ...prev[next], status: "ready" } };
+          }
+          return prev;
+        });
+      } else {
+        setRunCompletedAt(new Date().toISOString());
+      }
     }
   });
 
@@ -144,26 +149,17 @@ export function PipelineLayout() {
     updateStage(stageId, { status: "running", progress: 0, message: "Starting...", startedAt: new Date().toISOString() });
 
     try {
-      const res = await fetch(`/api/pipeline/${stageId}`, {
+      // Fire-and-forget: kick off the stage, then let Supabase realtime
+      // subscription handle all progress/completion/error updates.
+      // This avoids browser/edge timeout on long-running stages (2-5 min).
+      fetch(`/api/pipeline/${stageId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ runId, openrouterKey: apiKey }),
+      }).catch(() => {
+        // Connection may drop on long stages — that's fine,
+        // the server continues and realtime updates handle the rest.
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        updateStage(stageId, { status: "error", message: err.error || "Stage failed" });
-        return false;
-      }
-
-      updateStage(stageId, { status: "completed", progress: 100, message: "Complete", completedAt: new Date().toISOString() });
-      setExpandedStage(stageId);
-
-      if (stageId < 6) {
-        updateStage(stageId + 1, { status: "ready" });
-      } else {
-        setRunCompletedAt(new Date().toISOString());
-      }
       return true;
     } catch (err) {
       updateStage(stageId, { status: "error", message: String(err) });
