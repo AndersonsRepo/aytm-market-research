@@ -173,11 +173,11 @@ export default function MethodologyPage() {
             title="Explicit Rejection Permission & Category-Level Base Rates"
             file="stage4.ts → buildSystemPrompt()"
             impact="Est. −10-15pp"
-            description="Added 9 realism rules explicitly telling the model that low ratings are expected, 'none of the above' is common, and $23K is a major purchase. Uses product-category-level base rates (high-ticket home improvement), not product-specific data."
+            description="Added 9 realism rules explicitly telling the model that low ratings are expected, 'none of the above' is common, and $23K is a major purchase. Uses behavioral principles from survey methodology (status quo bias, financial constraints, satisficing) rather than product-specific data."
             details={[
               "RLHF-trained models avoid disagreement unless explicitly permitted to do so",
               "Medical AI research shows explicit rejection permission increases disagreement rates up to 94%",
-              "Category-level guidance ('high-ticket items see 15-25% top-2-box') is product-agnostic",
+              "Guidance references general consumer psychology (competing priorities, status quo bias) without citing specific rates",
               "Instructs models to limit strong opinions to 2-3 per respondent, matching real consumer behavior",
             ]}
             citation="LLM sycophancy research; TACL 2024 survey response bias study"

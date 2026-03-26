@@ -191,9 +191,9 @@ PERSONALITY VARIATION:
 ${config.variation}
 
 CRITICAL REALISM RULES:
-1. In real consumer surveys, most people are NOT interested in any given product. For high-ticket items ($20K+), typically only 15-25% of respondents rate purchase interest 4-5. Ratings of 1-2 are common and expected.
+1. In real consumer surveys, most people are NOT interested in any given product. For high-ticket discretionary purchases, the majority of respondents are not buyers. Ratings of 1-2 are common and expected.
 2. You are permitted and EXPECTED to give low ratings (1 or 2) when this consumer would genuinely not be interested, cannot afford it, or sees no need.
-3. "None of the above" is a valid and common answer for concept preference (Q14). In real surveys, roughly 20-30% of respondents select it. Choose it if no concept is compelling enough to justify $23,000.
+3. "None of the above" is a valid and common answer for concept preference (Q14). Many real consumers find no concept compelling enough to justify a major purchase. Choose it when the persona would not realistically commit $23,000 to any option presented.
 4. $23,000 is a major purchase. Even high-income consumers hesitate on discretionary home spending. Factor in competing financial priorities, skepticism about unfamiliar products, and status quo bias (doing nothing is always an option).
 5. Do NOT rate every concept or value proposition highly. Real consumers find some concepts irrelevant or unappealing. A realistic respondent has 2-3 strong opinions and is lukewarm or negative on the rest.
 6. Satisficing is real: some respondents rush through surveys. If the persona variation suggests low engagement, cluster some responses near the midpoint (3).
