@@ -17,7 +17,14 @@
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import type { Stage5Result, AnalysisType } from "@/lib/pipeline/types";
-import { mannWhitneyU, kruskalWallisH } from "@/lib/pipeline/stats";
+import { mannWhitneyU, kruskalWallisH, krippendorffAlpha } from "@/lib/pipeline/stats";
+import {
+  BENCHMARK_PURCHASE_INTEREST,
+  BENCHMARK_PURCHASE_LIKELIHOOD,
+  BENCHMARK_USE_CASE,
+  BENCHMARK_GREATEST_BARRIER,
+  BENCHMARK_BEST_CONCEPT,
+} from "@/lib/pipeline/benchmark";
 import {
   LIKERT_KEYS,
   BARRIER_KEYS,
@@ -448,13 +455,236 @@ export async function runStage5(
     "segment"
   );
 
-  await updateProgress(
-    supabase,
-    runId,
-    100,
-    "All analysis complete",
-    "completed"
-  );
+  await updateProgress(supabase, runId, 72, "Categorical distributions complete");
+
+  // ── 7. Inter-LLM reliability (STAMP: Krippendorff's alpha) ──────────
+
+  await updateProgress(supabase, runId, 75, "Computing inter-LLM reliability (STAMP)...");
+
+  const reliabilityResults: Record<string, unknown>[] = [];
+  const modelList = Object.keys(byModel).sort();
+
+  for (const key of NUMERIC_KEYS) {
+    // Build ratings matrix: one row per model, one column per item
+    // Items are ordered by segment_id + respondent index within segment
+    // Each model rates the same "slot" (segment×index)
+    const itemMap = new Map<string, Map<string, number>>();
+
+    for (const [model, modelRows] of Object.entries(byModel)) {
+      for (const row of modelRows) {
+        // Create a canonical item key from segment + respondent index
+        const itemKey = `${row.segment_id}_${row.respondent_id.split('_').pop()}`;
+        if (!itemMap.has(itemKey)) itemMap.set(itemKey, new Map());
+        const val = getNumeric(row.responses, key);
+        if (val !== null) itemMap.get(itemKey)!.set(model, val);
+      }
+    }
+
+    // Build the ratings matrix
+    const items = Array.from(itemMap.keys()).sort();
+    const ratings: (number | null)[][] = modelList.map(model =>
+      items.map(item => itemMap.get(item)?.get(model) ?? null)
+    );
+
+    const { alpha } = krippendorffAlpha(ratings);
+
+    reliabilityResults.push({
+      variable: key,
+      label: getLabel(key),
+      alpha: Math.round(alpha * 10000) / 10000,
+      passes_threshold: alpha >= 0.667,
+      interpretation: alpha >= 0.8 ? 'excellent' : alpha >= 0.667 ? 'acceptable' : alpha >= 0.4 ? 'moderate' : 'poor',
+      models: modelList,
+    });
+  }
+
+  // Overall alpha (average across variables)
+  const alphaValues = reliabilityResults.map(r => r.alpha as number).filter(a => !isNaN(a));
+  const overallAlpha = alphaValues.length > 0
+    ? Math.round((alphaValues.reduce((s, v) => s + v, 0) / alphaValues.length) * 10000) / 10000
+    : 0;
+
+  await saveAnalysis(supabase, runId, "inter_llm_reliability", {
+    variables: reliabilityResults,
+    overall_alpha: overallAlpha,
+    overall_interpretation: overallAlpha >= 0.8 ? 'excellent' : overallAlpha >= 0.667 ? 'acceptable' : overallAlpha >= 0.4 ? 'moderate' : 'poor',
+    passes_stamp_threshold: overallAlpha >= 0.667,
+    methodology: 'STAMP (Structured Taxonomy AI Measurement Protocol)',
+    models: modelList,
+  });
+
+  // ── 8. Benchmark comparison (synthetic vs real) ─────────────────────
+
+  await updateProgress(supabase, runId, 85, "Comparing synthetic results to real benchmark...");
+
+  // Helper: compute distribution from responses for a given key
+  function computeDistribution(key: string, allRows: ResponseRow[]): Record<string, { count: number; pct: number }> {
+    const counts: Record<string, number> = {};
+    let total = 0;
+    for (const row of allRows) {
+      const val = row.responses[key];
+      if (val == null || val === '') continue;
+      const strVal = String(val);
+      counts[strVal] = (counts[strVal] ?? 0) + 1;
+      total++;
+    }
+    const dist: Record<string, { count: number; pct: number }> = {};
+    for (const [v, c] of Object.entries(counts)) {
+      dist[v] = { count: c, pct: total > 0 ? Math.round((c / total) * 1000) / 10 : 0 };
+    }
+    return dist;
+  }
+
+  const benchmarkComparisons: Record<string, unknown>[] = [];
+
+  // 1. Purchase Interest (Q1)
+  const syntheticQ1 = computeDistribution('Q1', responses);
+  const q1Delta: Record<string, number> = {};
+  for (const k of ['1', '2', '3', '4', '5']) {
+    const synPct = syntheticQ1[k]?.pct ?? 0;
+    const realPct = BENCHMARK_PURCHASE_INTEREST.distribution[Number(k) as 1|2|3|4|5]?.pct ?? 0;
+    q1Delta[k] = Math.round((synPct - realPct) * 10) / 10;
+  }
+  benchmarkComparisons.push({
+    question: BENCHMARK_PURCHASE_INTEREST.question,
+    ourQ: 'Q1',
+    synthetic: syntheticQ1,
+    real: BENCHMARK_PURCHASE_INTEREST.distribution,
+    delta: q1Delta,
+    syntheticN: responses.length,
+    realN: BENCHMARK_PURCHASE_INTEREST.n,
+  });
+
+  // 2. Purchase Likelihood (Q2)
+  const syntheticQ2 = computeDistribution('Q2', responses);
+  const q2Delta: Record<string, number> = {};
+  for (const k of ['1', '2', '3', '4', '5']) {
+    const synPct = syntheticQ2[k]?.pct ?? 0;
+    const realPct = BENCHMARK_PURCHASE_LIKELIHOOD.distribution[Number(k) as 1|2|3|4|5]?.pct ?? 0;
+    q2Delta[k] = Math.round((synPct - realPct) * 10) / 10;
+  }
+  benchmarkComparisons.push({
+    question: BENCHMARK_PURCHASE_LIKELIHOOD.question,
+    ourQ: 'Q2',
+    synthetic: syntheticQ2,
+    real: BENCHMARK_PURCHASE_LIKELIHOOD.distribution,
+    delta: q2Delta,
+    syntheticN: responses.length,
+    realN: BENCHMARK_PURCHASE_LIKELIHOOD.n,
+  });
+
+  // 3. Primary Use Case (Q3)
+  const syntheticQ3 = computeDistribution('Q3', responses);
+  const q3Delta: Record<string, number> = {};
+  for (const useCase of Object.keys(BENCHMARK_USE_CASE.distribution)) {
+    const synPct = syntheticQ3[useCase]?.pct ?? 0;
+    const realPct = (BENCHMARK_USE_CASE.distribution as Record<string, { pct: number }>)[useCase]?.pct ?? 0;
+    q3Delta[useCase] = Math.round((synPct - realPct) * 10) / 10;
+  }
+  benchmarkComparisons.push({
+    question: BENCHMARK_USE_CASE.question,
+    ourQ: 'Q3',
+    synthetic: syntheticQ3,
+    real: BENCHMARK_USE_CASE.distribution,
+    delta: q3Delta,
+    syntheticN: responses.length,
+    realN: BENCHMARK_USE_CASE.n,
+  });
+
+  // 4. Greatest Single Barrier (Q6)
+  const syntheticQ6 = computeDistribution('Q6', responses);
+  const q6Delta: Record<string, number> = {};
+  for (const barrier of Object.keys(BENCHMARK_GREATEST_BARRIER.distribution)) {
+    const synPct = syntheticQ6[barrier]?.pct ?? 0;
+    const realPct = (BENCHMARK_GREATEST_BARRIER.distribution as Record<string, { pct: number }>)[barrier]?.pct ?? 0;
+    q6Delta[barrier] = Math.round((synPct - realPct) * 10) / 10;
+  }
+  benchmarkComparisons.push({
+    question: BENCHMARK_GREATEST_BARRIER.question,
+    ourQ: 'Q6',
+    synthetic: syntheticQ6,
+    real: BENCHMARK_GREATEST_BARRIER.distribution,
+    delta: q6Delta,
+    syntheticN: responses.length,
+    realN: BENCHMARK_GREATEST_BARRIER.n,
+  });
+
+  // 5. Most Motivating Concept (Q14)
+  const syntheticQ14 = computeDistribution('Q14', responses);
+  const q14Delta: Record<string, number> = {};
+  for (const concept of Object.keys(BENCHMARK_BEST_CONCEPT.distribution)) {
+    const synPct = syntheticQ14[concept]?.pct ?? 0;
+    const realPct = (BENCHMARK_BEST_CONCEPT.distribution as Record<string, { pct: number }>)[concept]?.pct ?? 0;
+    q14Delta[concept] = Math.round((synPct - realPct) * 10) / 10;
+  }
+  benchmarkComparisons.push({
+    question: BENCHMARK_BEST_CONCEPT.question,
+    ourQ: 'Q14',
+    synthetic: syntheticQ14,
+    real: BENCHMARK_BEST_CONCEPT.distribution,
+    delta: q14Delta,
+    syntheticN: responses.length,
+    realN: BENCHMARK_BEST_CONCEPT.n,
+  });
+
+  await saveAnalysis(supabase, runId, "benchmark_comparison", {
+    comparisons: benchmarkComparisons,
+    methodology: 'Synthetic distributions compared against real aytm survey (N=600)',
+  });
+
+  // ── 9. Disagreement analysis (STAMP: where models diverge) ──────────
+
+  await updateProgress(supabase, runId, 95, "Analyzing model disagreements...");
+
+  const disagreements: Record<string, unknown>[] = [];
+
+  for (const key of NUMERIC_KEYS) {
+    const modelMeans: Record<string, number> = {};
+    for (const [model, modelRows] of Object.entries(byModel)) {
+      const values = modelRows
+        .map((r) => getNumeric(r.responses, key))
+        .filter((v): v is number => v !== null);
+      modelMeans[model] = values.length > 0
+        ? round3(values.reduce((s, v) => s + v, 0) / values.length)
+        : 0;
+    }
+
+    const meanValues = Object.values(modelMeans);
+    const maxDiff = meanValues.length > 1
+      ? round3(Math.max(...meanValues) - Math.min(...meanValues))
+      : 0;
+
+    if (maxDiff > 0.5) { // Only flag meaningful disagreements
+      const highModel = Object.entries(modelMeans).reduce((a, b) => a[1] > b[1] ? a : b);
+      const lowModel = Object.entries(modelMeans).reduce((a, b) => a[1] < b[1] ? a : b);
+
+      disagreements.push({
+        variable: key,
+        label: getLabel(key),
+        model_means: modelMeans,
+        max_difference: maxDiff,
+        highest: { model: highModel[0], mean: highModel[1] },
+        lowest: { model: lowModel[0], mean: lowModel[1] },
+        interpretation: maxDiff > 1.0
+          ? 'strong_disagreement'
+          : maxDiff > 0.75
+            ? 'moderate_disagreement'
+            : 'mild_disagreement',
+      });
+    }
+  }
+
+  // Sort by magnitude of disagreement
+  disagreements.sort((a, b) => (b.max_difference as number) - (a.max_difference as number));
+
+  await saveAnalysis(supabase, runId, "disagreement_analysis", {
+    disagreements,
+    total_variables: NUMERIC_KEYS.length,
+    variables_with_disagreement: disagreements.length,
+    methodology: 'STAMP: Inter-LLM disagreement reveals construct ambiguity and hidden assumptions',
+  });
+
+  await updateProgress(supabase, runId, 100, "All analysis complete", "completed");
 
   // ── Return result ─────────────────────────────────────────────────────
 

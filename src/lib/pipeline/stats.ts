@@ -343,3 +343,67 @@ export function kolmogorovSmirnovTest(
 
   return { D, p };
 }
+/**
+ * Krippendorff's alpha for ordinal/interval data.
+ * Measures inter-rater (inter-LLM) reliability.
+ * 
+ * @param ratings - 2D array where ratings[coder][item] = value (or null for missing)
+ * @returns alpha coefficient (-1 to 1, where 1 = perfect agreement, 0 = chance)
+ */
+export function krippendorffAlpha(
+  ratings: (number | null)[][]
+): { alpha: number; De: number; Do: number } {
+  const nCoders = ratings.length;
+  if (nCoders < 2) return { alpha: 1, De: 0, Do: 0 };
+
+  const nItems = ratings[0]?.length ?? 0;
+  if (nItems === 0) return { alpha: 1, De: 0, Do: 0 };
+
+  // Collect all non-null values per item
+  const itemValues: number[][] = [];
+  for (let u = 0; u < nItems; u++) {
+    const vals: number[] = [];
+    for (let c = 0; c < nCoders; c++) {
+      const v = ratings[c]?.[u];
+      if (v !== null && v !== undefined) vals.push(v);
+    }
+    itemValues.push(vals);
+  }
+
+  // Observed disagreement (Do)
+  let Do = 0;
+  let totalPairs = 0;
+  for (const vals of itemValues) {
+    const m = vals.length;
+    if (m < 2) continue;
+    for (let i = 0; i < m; i++) {
+      for (let j = i + 1; j < m; j++) {
+        Do += (vals[i] - vals[j]) ** 2;
+        totalPairs++;
+      }
+    }
+  }
+  if (totalPairs > 0) Do /= totalPairs;
+
+  // Expected disagreement (De) — all possible pairs across all items
+  const allValues: number[] = [];
+  for (const vals of itemValues) {
+    for (const v of vals) allValues.push(v);
+  }
+  const n = allValues.length;
+  if (n < 2) return { alpha: 1, De: 0, Do: 0 };
+
+  let De = 0;
+  let dePairs = 0;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      De += (allValues[i] - allValues[j]) ** 2;
+      dePairs++;
+    }
+  }
+  if (dePairs > 0) De /= dePairs;
+
+  const alpha = De > 0 ? 1 - Do / De : 1;
+
+  return { alpha: Math.round(alpha * 10000) / 10000, De, Do };
+}

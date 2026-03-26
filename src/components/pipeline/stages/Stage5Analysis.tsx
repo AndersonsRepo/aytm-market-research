@@ -479,9 +479,233 @@ export function Stage5Analysis({ runId }: { runId: string }) {
         );
       })}
 
+      {/* ── Inter-LLM Reliability (STAMP) ── */}
+      {(byType["inter_llm_reliability"] || []).map((item: any, i: number) => {
+        const data = item.results || {};
+        const variables = (data.variables || []) as Array<{ variable: string; label: string; alpha: number; passes_threshold: boolean; interpretation: string }>;
+        const overallAlpha = data.overall_alpha as number;
+        const passesStamp = data.passes_stamp_threshold as boolean;
+        return (
+          <div key={`ilr-${i}`} className="space-y-4">
+            <SectionHeader>Inter-LLM Reliability (STAMP)</SectionHeader>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard label="Overall Alpha" value={overallAlpha?.toFixed(3) ?? "—"} />
+              <StatCard label="STAMP Threshold" value={passesStamp ? "✓ PASS (≥0.667)" : "✗ FAIL"} />
+              <StatCard label="Interpretation" value={data.overall_interpretation ?? "—"} />
+              <StatCard label="Models" value={(data.models as string[])?.length ?? 0} />
+            </div>
+            <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+              <ResponsiveContainer width="100%" height={Math.max(250, variables.length * 22)}>
+                <BarChart data={variables.map(v => ({ ...v, name: v.label || v.variable }))} layout="vertical" margin={{ top: 5, right: 20, bottom: 5, left: 130 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis type="number" domain={[0, 1]} tick={{ fill: "#9ca3af", fontSize: 11 }}
+                    ticks={[0, 0.2, 0.4, 0.667, 0.8, 1.0]} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} width={120} />
+                  <Tooltip contentStyle={{ backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: 8 }}
+                    formatter={(value) => [Number(value)?.toFixed(4), "α"]} />
+                  <RBar dataKey="alpha" radius={[0, 3, 3, 0]}
+                    fill="#3b82f6"
+                    label={{ position: "right", fill: "#9ca3af", fontSize: 10, formatter: (v: unknown) => Number(v)?.toFixed(3) }} />
+                  {/* Reference line at STAMP threshold would be nice but simple bar works */}
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                <span className="inline-block w-3 h-0.5 bg-yellow-500"></span>
+                <span>STAMP threshold: α ≥ 0.667</span>
+              </div>
+            </div>
+            <details className="bg-gray-800/40 border border-gray-700 rounded-lg">
+              <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-white hover:bg-gray-800/60 rounded-lg">
+                Variable Detail ({variables.length} variables)
+              </summary>
+              <div className="px-4 pb-3 overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-gray-400 border-b border-gray-700">
+                      <th className="text-left py-2 pr-2">Variable</th>
+                      <th className="text-center py-2 px-2">Alpha</th>
+                      <th className="text-center py-2 px-2">Threshold</th>
+                      <th className="text-center py-2 px-2">Interpretation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {variables.map((v, j) => (
+                      <tr key={j} className={`border-b border-gray-800/50 ${v.passes_threshold ? "" : "bg-red-950/10"}`}>
+                        <td className="py-1.5 pr-2 text-gray-300">{v.label || v.variable}</td>
+                        <td className={`text-center py-1.5 px-2 font-mono font-bold ${v.passes_threshold ? "text-green-400" : "text-red-400"}`}>
+                          {v.alpha?.toFixed(4)}
+                        </td>
+                        <td className="text-center py-1.5 px-2">
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${v.passes_threshold ? "bg-green-900/40 text-green-400" : "bg-red-900/40 text-red-400"}`}>
+                            {v.passes_threshold ? "PASS" : "FAIL"}
+                          </span>
+                        </td>
+                        <td className="text-center py-1.5 px-2 text-gray-400 capitalize">{v.interpretation}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          </div>
+        );
+      })}
+
+      {/* ── Benchmark Comparison (Synthetic vs Real) ── */}
+      {(byType["benchmark_comparison"] || []).map((item: any, i: number) => {
+        const comparisons = (item.results?.comparisons || []) as Array<{
+          question: string; ourQ: string;
+          synthetic: Record<string, { count: number; pct: number }>;
+          real: Record<string, { count?: number; pct: number; label?: string }>;
+          delta: Record<string, number>;
+          syntheticN: number; realN: number;
+        }>;
+        return (
+          <div key={`bench-${i}`} className="space-y-4">
+            <SectionHeader>Benchmark Comparison — Synthetic vs Real (N=600)</SectionHeader>
+            <p className="text-xs text-gray-500">Comparing synthetic survey distributions against real aytm survey results.</p>
+            {comparisons.map((comp, ci) => {
+              const keys = Object.keys(comp.delta);
+              const chartData = keys.map(k => ({
+                label: k.length > 25 ? k.slice(0, 23) + "…" : k,
+                Synthetic: comp.synthetic[k]?.pct ?? 0,
+                Real: (comp.real[k] as any)?.pct ?? 0,
+              }));
+              const maxAbsDelta = Math.max(...Object.values(comp.delta).map(Math.abs));
+              return (
+                <div key={ci} className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h4 className="text-sm font-semibold text-white">{comp.question}</h4>
+                      <p className="text-xs text-gray-500">Question {comp.ourQ} | Synthetic N={comp.syntheticN} vs Real N={comp.realN}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded font-mono ${maxAbsDelta <= 5 ? "bg-green-900/40 text-green-400" : maxAbsDelta <= 15 ? "bg-yellow-900/40 text-yellow-400" : "bg-red-900/40 text-red-400"}`}>
+                      Max Δ: {maxAbsDelta.toFixed(1)}pp
+                    </span>
+                  </div>
+                  {chartData.length <= 10 && (
+                    <ResponsiveContainer width="100%" height={Math.max(200, chartData.length * 35)}>
+                      <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 20, bottom: 5, left: 140 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                        <XAxis type="number" tick={{ fill: "#9ca3af", fontSize: 11 }} unit="%" />
+                        <YAxis type="category" dataKey="label" tick={{ fill: "#9ca3af", fontSize: 9 }} width={130} />
+                        <Tooltip contentStyle={{ backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: 8 }}
+                          formatter={(value) => [`${Number(value).toFixed(1)}%`]} />
+                        <Legend wrapperStyle={{ fontSize: 11 }} />
+                        <RBar dataKey="Synthetic" fill="#3b82f6" radius={[0, 3, 3, 0]} />
+                        <RBar dataKey="Real" fill="#22c55e" radius={[0, 3, 3, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                  {/* Delta table */}
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-gray-400 border-b border-gray-700">
+                          <th className="text-left py-2 pr-2">Value</th>
+                          <th className="text-center py-2 px-2">Synthetic</th>
+                          <th className="text-center py-2 px-2">Real</th>
+                          <th className="text-center py-2 px-2">Delta (pp)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {keys.map(k => {
+                          const d = comp.delta[k];
+                          return (
+                            <tr key={k} className="border-b border-gray-800/50">
+                              <td className="py-1.5 pr-2 text-gray-300">{k}</td>
+                              <td className="text-center py-1.5 px-2 font-mono text-blue-400">{(comp.synthetic[k]?.pct ?? 0).toFixed(1)}%</td>
+                              <td className="text-center py-1.5 px-2 font-mono text-green-400">{((comp.real[k] as any)?.pct ?? 0).toFixed(1)}%</td>
+                              <td className={`text-center py-1.5 px-2 font-mono font-bold ${Math.abs(d) <= 5 ? "text-gray-400" : Math.abs(d) <= 15 ? "text-yellow-400" : "text-red-400"}`}>
+                                {d > 0 ? "+" : ""}{d.toFixed(1)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+
+      {/* ── Disagreement Analysis (STAMP) ── */}
+      {(byType["disagreement_analysis"] || []).map((item: any, i: number) => {
+        const data = item.results || {};
+        const disagreements = (data.disagreements || []) as Array<{
+          variable: string; label: string;
+          model_means: Record<string, number>;
+          max_difference: number;
+          highest: { model: string; mean: number };
+          lowest: { model: string; mean: number };
+          interpretation: string;
+        }>;
+        return (
+          <div key={`da-${i}`} className="space-y-4">
+            <SectionHeader>Model Disagreement Analysis (STAMP)</SectionHeader>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <StatCard label="Variables Analyzed" value={data.total_variables ?? 0} />
+              <StatCard label="With Disagreement" value={data.variables_with_disagreement ?? 0} />
+              <StatCard label="Disagreement Rate" value={data.total_variables ? `${Math.round((data.variables_with_disagreement / data.total_variables) * 100)}%` : "—"} />
+            </div>
+            <p className="text-xs text-gray-500 italic">{data.methodology}</p>
+            {disagreements.length === 0 ? (
+              <div className="bg-green-900/20 border border-green-800 rounded-lg p-4 text-sm text-green-400">
+                No significant model disagreements detected (all mean differences ≤ 0.5).
+              </div>
+            ) : (
+              <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4 overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-gray-400 border-b border-gray-700">
+                      <th className="text-left py-2 pr-2">Variable</th>
+                      <th className="text-center py-2 px-2">Max Δ</th>
+                      <th className="text-left py-2 px-2">Highest</th>
+                      <th className="text-left py-2 px-2">Lowest</th>
+                      <th className="text-center py-2 px-2">Severity</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {disagreements.map((d, j) => (
+                      <tr key={j} className="border-b border-gray-800/50">
+                        <td className="py-1.5 pr-2 text-gray-300">{d.label || d.variable}</td>
+                        <td className={`text-center py-1.5 px-2 font-mono font-bold ${d.max_difference > 1 ? "text-red-400" : d.max_difference > 0.75 ? "text-yellow-400" : "text-orange-400"}`}>
+                          {d.max_difference?.toFixed(2)}
+                        </td>
+                        <td className="py-1.5 px-2 text-gray-400">
+                          <span className="font-mono text-blue-400">{d.highest?.mean?.toFixed(2)}</span>
+                          <span className="ml-1 text-gray-600">({d.highest?.model})</span>
+                        </td>
+                        <td className="py-1.5 px-2 text-gray-400">
+                          <span className="font-mono text-red-400">{d.lowest?.mean?.toFixed(2)}</span>
+                          <span className="ml-1 text-gray-600">({d.lowest?.model})</span>
+                        </td>
+                        <td className="text-center py-1.5 px-2">
+                          <span className={`text-xs px-1.5 py-0.5 rounded capitalize ${
+                            d.interpretation === "strong_disagreement" ? "bg-red-900/40 text-red-400" :
+                            d.interpretation === "moderate_disagreement" ? "bg-yellow-900/40 text-yellow-400" :
+                            "bg-orange-900/40 text-orange-400"
+                          }`}>
+                            {d.interpretation?.replace(/_/g, " ")}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+
       {/* ── Fallback for unknown types ── */}
       {Object.entries(byType)
-        .filter(([type]) => !["cross_tabulation", "descriptive_likert", "model_comparison_likert", "kruskal_wallis", "barrier_heatmap", "segment_profiles", "descriptive_categorical"].includes(type))
+        .filter(([type]) => !["cross_tabulation", "descriptive_likert", "model_comparison_likert", "kruskal_wallis", "barrier_heatmap", "segment_profiles", "descriptive_categorical", "inter_llm_reliability", "benchmark_comparison", "disagreement_analysis"].includes(type))
         .map(([type, items]) => (
           <div key={type}>
             <SectionHeader>{type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</SectionHeader>

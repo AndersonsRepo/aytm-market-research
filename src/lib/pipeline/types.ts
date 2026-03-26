@@ -206,7 +206,10 @@ export type AnalysisType =
   | 'model_comparison_categorical'
   | 'barrier_heatmap'
   | 'segment_profiles'
-  | 'kruskal_wallis';
+  | 'kruskal_wallis'
+  | 'inter_llm_reliability'
+  | 'benchmark_comparison'
+  | 'disagreement_analysis';
 
 export interface AnalysisResult {
   id?: string;
@@ -415,6 +418,8 @@ export interface SegmentProfile {
   Q15: LikertProfile;
   Q16: LikertProfile;
   Q17: LikertProfile;
+  Q17b: LikertProfile;
+  Q17c: LikertProfile;
   Q18: string[];
   Q19: LikertProfile;
   Q20: string[][];

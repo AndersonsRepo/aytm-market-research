@@ -172,6 +172,7 @@ interface SegmentProfile {
   Q13a: LikertProfile; Q13b: LikertProfile;
   Q14: string[];
   Q15: LikertProfile; Q16: LikertProfile; Q17: LikertProfile;
+  Q17b: LikertProfile; Q17c: LikertProfile;
   Q18: string[];
   Q19: LikertProfile;
   Q20: string[][];
@@ -191,9 +192,10 @@ const SEGMENT_PROFILES: Record<number, SegmentProfile> = {
     Q11a: [3.0, 0.8], Q11b: [2.6, 0.9],
     Q12a: [2.2, 0.8], Q12b: [1.9, 0.7],
     Q13a: [3.8, 0.7], Q13b: [3.4, 0.8],
-    Q14: ["Concept 1: Backyard Home Office", "Concept 1: Backyard Home Office", "Concept 1: Backyard Home Office", "Concept 1: Backyard Home Office", "Concept 5: Message-First", "Concept 5: Message-First"],
+    Q14: ["Concept 1: Backyard Home Office", "Concept 1: Backyard Home Office", "Concept 1: Backyard Home Office", "Concept 1: Backyard Home Office", "Concept 5: Simplicity", "Concept 5: Simplicity"],
     Q15: [3.9, 0.7], Q16: [3.5, 0.8], Q17: [3.8, 0.7],
-    Q18: ["Permit-light positioning", "Permit-light positioning", "Permit-light positioning", "Build quality and details", "Build quality and details", "Installation speed"],
+    Q17b: [3.6, 0.7], Q17c: [2.8, 0.9],
+    Q18: ["Permit-light positioning", "Permit-light positioning", "Permit-light positioning", "Build quality and details", "Smart Technology", "Installation speed"],
     Q19: [2.8, 0.8],
     Q20: [
       ["Social media ads (Facebook, Instagram)", "Google / Search ads"],
@@ -219,7 +221,8 @@ const SEGMENT_PROFILES: Record<number, SegmentProfile> = {
     Q13a: [3.2, 0.8], Q13b: [2.8, 0.9],
     Q14: ["Concept 4: Adventure Lifestyle / Community", "Concept 4: Adventure Lifestyle / Community", "Concept 4: Adventure Lifestyle / Community", "Concept 4: Adventure Lifestyle / Community", "Concept 4: Adventure Lifestyle / Community", "Concept 3: Wellness / Studio Space"],
     Q15: [3.2, 0.8], Q16: [3.6, 0.7], Q17: [3.4, 0.8],
-    Q18: ["Installation speed", "Installation speed", "Installation speed", "Build quality and details", "Build quality and details", "Permit-light positioning"],
+    Q17b: [3.0, 0.8], Q17c: [2.4, 0.9],
+    Q18: ["Installation speed", "Installation speed", "Installation speed", "Build quality and details", "Build quality and details", "Showroom"],
     Q19: [4.2, 0.6],
     Q20: [
       ["Outdoor club sponsorships / community events", "Social media ads (Facebook, Instagram)"],
@@ -243,9 +246,10 @@ const SEGMENT_PROFILES: Record<number, SegmentProfile> = {
     Q11a: [4.5, 0.5], Q11b: [4.0, 0.6],
     Q12a: [2.6, 0.8], Q12b: [2.2, 0.8],
     Q13a: [3.5, 0.7], Q13b: [3.1, 0.8],
-    Q14: ["Concept 3: Wellness / Studio Space", "Concept 3: Wellness / Studio Space", "Concept 3: Wellness / Studio Space", "Concept 3: Wellness / Studio Space", "Concept 1: Backyard Home Office", "Concept 5: Message-First"],
+    Q14: ["Concept 3: Wellness / Studio Space", "Concept 3: Wellness / Studio Space", "Concept 3: Wellness / Studio Space", "Concept 3: Wellness / Studio Space", "Concept 1: Backyard Home Office", "Concept 5: Simplicity"],
     Q15: [3.6, 0.7], Q16: [3.3, 0.8], Q17: [4.0, 0.6],
-    Q18: ["Build quality and details", "Build quality and details", "Build quality and details", "Build quality and details", "Permit-light positioning", "Installation speed"],
+    Q17b: [3.4, 0.7], Q17c: [3.0, 0.8],
+    Q18: ["Build quality and details", "Build quality and details", "Build quality and details", "Showroom", "Permit-light positioning", "Smart Technology"],
     Q19: [3.2, 0.8],
     Q20: [
       ["Social media ads (Facebook, Instagram)", "Friend / family referral"],
@@ -269,9 +273,10 @@ const SEGMENT_PROFILES: Record<number, SegmentProfile> = {
     Q11a: [2.4, 0.8], Q11b: [2.0, 0.7],
     Q12a: [1.8, 0.7], Q12b: [1.5, 0.5],
     Q13a: [3.6, 0.7], Q13b: [3.2, 0.8],
-    Q14: ["Concept 2: Guest Suite / STR Income", "Concept 2: Guest Suite / STR Income", "Concept 2: Guest Suite / STR Income", "Concept 2: Guest Suite / STR Income", "Concept 2: Guest Suite / STR Income", "Concept 5: Message-First"],
+    Q14: ["Concept 2: Guest Suite / STR Income", "Concept 2: Guest Suite / STR Income", "Concept 2: Guest Suite / STR Income", "Concept 2: Guest Suite / STR Income", "Concept 2: Guest Suite / STR Income", "Concept 5: Simplicity"],
     Q15: [4.0, 0.6], Q16: [3.8, 0.7], Q17: [4.2, 0.5],
-    Q18: ["Build quality and details", "Build quality and details", "Build quality and details", "Permit-light positioning", "Permit-light positioning", "Installation speed"],
+    Q17b: [3.8, 0.6], Q17c: [3.6, 0.7],
+    Q18: ["Build quality and details", "Build quality and details", "Smart Technology", "Permit-light positioning", "Showroom", "Installation speed"],
     Q19: [2.4, 0.8],
     Q20: [
       ["Real estate partner referrals", "Home improvement expos"],
@@ -295,8 +300,9 @@ const SEGMENT_PROFILES: Record<number, SegmentProfile> = {
     Q11a: [2.4, 0.8], Q11b: [2.0, 0.7],
     Q12a: [2.2, 0.8], Q12b: [1.8, 0.7],
     Q13a: [4.0, 0.6], Q13b: [3.5, 0.8],
-    Q14: ["Concept 5: Message-First", "Concept 5: Message-First", "Concept 5: Message-First", "Concept 5: Message-First", "Concept 1: Backyard Home Office", "None of the above"],
+    Q14: ["Concept 5: Simplicity", "Concept 5: Simplicity", "Concept 5: Simplicity", "Concept 5: Simplicity", "Concept 1: Backyard Home Office", "None of the above"],
     Q15: [4.2, 0.6], Q16: [3.8, 0.7], Q17: [3.0, 0.8],
+    Q17b: [2.6, 0.9], Q17c: [2.2, 0.9],
     Q18: ["Permit-light positioning", "Permit-light positioning", "Permit-light positioning", "Permit-light positioning", "Installation speed", "Installation speed"],
     Q19: [2.6, 0.9],
     Q20: [
@@ -680,7 +686,7 @@ function getSurveyDesign(modelLabel: string): Record<string, unknown> {
           { id: "Q12b", type: "likert_5", text: "How likely would you be to purchase under this concept?" },
           { id: "Q13a", type: "likert_5", text: "Concept 5 — Message-First (Speed, Simplicity, Value): How appealing is this concept?" },
           { id: "Q13b", type: "likert_5", text: "How likely would you be to purchase under this concept?" },
-          { id: "Q14", type: "single_choice", text: "Which concept resonates with you MOST?", options: ["Concept 1: Backyard Home Office", "Concept 2: Guest Suite / STR Income", "Concept 3: Wellness / Studio Space", "Concept 4: Adventure Lifestyle / Community", "Concept 5: Message-First", "None of the above"] },
+          { id: "Q14", type: "single_choice", text: "Which concept resonates with you MOST?", options: ["Concept 1: Backyard Home Office", "Concept 2: Guest Suite / STR Income", "Concept 3: Wellness / Studio Space", "Concept 4: Adventure Lifestyle / Community", "Concept 5: Simplicity", "None of the above"] },
         ],
       },
       {
@@ -690,9 +696,11 @@ function getSurveyDesign(modelLabel: string): Record<string, unknown> {
           { id: "Q15", type: "likert_5", text: "How important is 'permit-light' (no full building permit required) in your decision?" },
           { id: "Q16", type: "likert_5", text: "How important is 'one-day professional installation' in your decision?" },
           { id: "Q17", type: "likert_5", text: "How important is build quality and materials in your decision?" },
-          { id: "Q18", type: "single_choice", text: "What is the MOST important value proposition?", options: ["Permit-light positioning", "Build quality and details", "Installation speed", "Price point", "Versatility of use cases"] },
+          { id: "Q17b", type: "likert_5", text: "How important is smart technology integration in your decision?" },
+          { id: "Q17c", type: "likert_5", text: "How important is having a showroom experience before purchasing?" },
+          { id: "Q18", type: "single_choice", text: "What is the MOST important value proposition?", options: ["Permit-light positioning", "Build quality and details", "Installation speed", "Smart Technology", "Showroom"] },
           { id: "Q19", type: "likert_5", text: "Would brand sponsorship of outdoor/community events positively influence your perception?" },
-          { id: "Q20", type: "multi_choice", text: "How would you most likely discover a product like this? (Select up to 2)", options: ["Social media ads (Facebook, Instagram)", "Google / Search ads", "Friend / family referral", "Home improvement expos", "Outdoor club sponsorships / community events", "Real estate partner referrals"] },
+          { id: "Q20", type: "multi_choice", text: "How would you most likely discover a product like this? (Select up to 2)", options: ["Social media ads (Facebook, Instagram)", "Google / Search ads", "Friend / family referral", "Home improvement expos", "Outdoor club sponsorships / community events", "Real estate partner referrals", "Social media posts on vendor accounts (e.g., Neo Smart Living's Instagram, Facebook, TikTok)", "YouTube videos (reviews, walkthroughs, install timelapses)", "Neighborhood / Nextdoor recommendations", "Online reviews / rating sites", "None of the above"] },
         ],
       },
       {
@@ -982,7 +990,7 @@ export async function seedDemoData(supabase: SupabaseClient, runId: string): Pro
     "Q5_cost", "Q5_hoa", "Q5_permit", "Q5_space", "Q5_financing", "Q5_quality", "Q5_resale",
     "Q6", "Q7",
     "Q9a", "Q9b", "Q10a", "Q10b", "Q11a", "Q11b", "Q12a", "Q12b", "Q13a", "Q13b",
-    "Q14", "Q15", "Q16", "Q17", "Q18", "Q19",
+    "Q14", "Q15", "Q16", "Q17", "Q17b", "Q17c", "Q18", "Q19",
     "Q21", "Q22", "Q23", "Q24", "Q25", "Q26", "Q30",
   ];
 
@@ -990,7 +998,7 @@ export async function seedDemoData(supabase: SupabaseClient, runId: string): Pro
     "Q0b", "Q1", "Q2", "Q5_cost", "Q5_hoa", "Q5_permit", "Q5_space",
     "Q5_financing", "Q5_quality", "Q5_resale", "Q7",
     "Q9a", "Q9b", "Q10a", "Q10b", "Q11a", "Q11b",
-    "Q12a", "Q12b", "Q13a", "Q13b", "Q15", "Q16", "Q17", "Q19",
+    "Q12a", "Q12b", "Q13a", "Q13b", "Q15", "Q16", "Q17", "Q17b", "Q17c", "Q19",
   ];
 
   const CATEGORICAL_KEYS = ["Q3", "Q6", "Q14", "Q18"];
