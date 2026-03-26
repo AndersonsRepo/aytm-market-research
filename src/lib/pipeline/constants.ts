@@ -806,18 +806,60 @@ export const SEGMENT_PROFILE_KEYS = [
 ];
 
 // --- Stage 1: Discovery Questions ---
+// ── Founder Brief: Real data from Tony Koo (CEO) client visit ──────────────
+
+export const FOUNDER_BRIEF = `
+COMPANY: Neo Smart Living (neosmartliving.com)
+FOUNDER: Tony Koo — adventurer, forward-thinker, deep experience in recreational living, modular homes, and mobility-based design.
+MISSION: "We don't just build structures — we build new ways to live, explore, and invest in the future."
+
+PRODUCT — TAHOE MINI:
+- Size: 117 sq ft (intentionally under ~120 sq ft California threshold to avoid permits in most jurisdictions)
+- Price: ~$23,000 delivered and professionally installed
+- Install: Panelized delivery supports limited-access backyards; larger units may require truck access or crane
+- Features: Pre-wired electrical, pitched roof with drainage, double-pane glass, optional upgrades (sound insulation)
+- Best seller in the Neo Smart Living lineup. 2025 revenue in the seven figures (exact number not disclosed).
+- Description: "The easiest of installs and sized for nearly every backyard. Tahoe Mini's bright and open studio layout is your blank canvas."
+
+USE CASES CITED BY FOUNDER: Backyard office, guest room, premium "speed shed" storage, music/podcast studio, pool room, playroom for kids, short-term rental stays.
+
+MARKET:
+- ~70% residential/backyard customers, ~30% light industrial/commercial (warehouse office, conference room)
+- Growth has been largely referral/word-of-mouth; starting to test paid channels (Facebook suggested for older homeowner demographics)
+
+VALUE DRIVERS (from client visit):
+1. Permit avoidance — often avoids permits; still verify city ordinances and HOA rules
+2. Speed/fulfillment — weekly installs, local inventory
+3. Quality/build details — pre-wired electrical, pitched roof/drainage, double-pane glass, optional sound insulation
+
+COMPETITION: Many resellers/importers with lower-grade materials and weaker after-sales support. Boxable discussed but positioned as less direct competitor (ADU/housing focus, heavier certification/permitting burden).
+
+ENVIRONMENTAL ANGLE: Building and construction accounts for 39% of global carbon emissions; 40% of construction materials end up in landfills. Neo Smart Living's prefab units are manufactured in controlled environments — less waste, less energy, customizable.
+
+COMMUNITY STRATEGY: Target outdoor adventurers and social groups — mountain bike clubs, ATV clubs, outdoor yoga communities, mobile music studios. Method: sponsorship and community participation. Sample collaborator: Inland Empire Mountain Bike Club (IE-MTB, 1,548 followers on Instagram).
+
+RESEARCH GOAL (founder's words): "This product is currently our best seller and the one we want to invest more time and effort into promoting. We'd like to understand whether there's genuine market demand — how many people would be willing to install such a versatile, multi-purpose tiny home in their own backyard. We also want to identify which demographic groups we should focus our marketing and promotional efforts on."
+`;
+
 export const DISCOVERY_QUESTIONS: Record<string, string> = {
-  DQ1: 'What is the core value proposition of the Tahoe Mini for homeowners?',
-  DQ2: 'Who is the ideal target customer? Describe 3 distinct profiles.',
-  DQ3: 'What are the top 3 barriers to purchase at the $23,000 price point?',
-  DQ4: "How does 'permit-light' positioning differentiate this from competitors?",
-  DQ5: 'What emotional triggers would drive someone to buy a backyard structure?',
-  DQ6: 'What role does professional installation play in the buying decision?',
-  DQ7: 'How might HOA restrictions affect the addressable market?',
-  DQ8: 'What use cases have the strongest appeal: office, wellness, guest suite, adventure, storage?',
-  DQ9: 'How should Neo Smart Living position against traditional contractors and DIY sheds?',
-  DQ10: 'What marketing channels would most effectively reach the target audience?',
+  DQ1: 'Based on the founder brief, what is the core value proposition of the Tahoe Mini? How does the permit-light positioning, professional installation, and $23,000 price point work together?',
+  DQ2: 'The founder says the market is ~70% residential, ~30% commercial. For the residential segment, what are 3-4 distinct customer profiles that would buy this? Ground your answer in the use cases Tony Koo cited.',
+  DQ3: 'What are the most significant barriers to purchase at $23,000? Consider that the founder identified permit avoidance, speed, and build quality as key value drivers — what concerns remain unaddressed?',
+  DQ4: 'The founder says competitors are mostly resellers/importers with lower-grade materials. How should Neo Smart Living position the Tahoe Mini against these AND against traditional contractors and DIY sheds?',
+  DQ5: 'Tony Koo\'s community strategy targets outdoor adventurers (MTB clubs, ATV clubs, yoga communities). Evaluate this strategy — is it the right audience for the Tahoe Mini, or should marketing focus elsewhere?',
+  DQ6: 'The company has grown through referral/word-of-mouth and is starting to test Facebook ads for older homeowners. What marketing channel mix would most effectively reach the residential target audience?',
+  DQ7: 'The Tahoe Mini is designed to be permit-light, but HOA restrictions and city ordinances still apply. How might this affect the addressable market, and how should Neo Smart Living address it in messaging?',
+  DQ8: 'The founder cited these use cases: office, guest room, speed shed storage, music/podcast studio, pool room, playroom, short-term rental. Which have the strongest market appeal and why? Rank them.',
+  DQ9: 'Neo Smart Living emphasizes environmental responsibility (prefab = less waste, less carbon). How much does this matter to the target buyer vs. practical concerns like price, permits, and installation speed?',
+  DQ10: 'The founder wants to understand genuine market demand and which demographics to target. What research questions are most critical to answer in a quantitative survey of US homeowners?',
 };
 
 export const DISCOVERY_SYSTEM_PROMPT =
-  'You are a market research strategist analyzing the Tahoe Mini by Neo Smart Living — a ~120 sq ft prefabricated backyard structure, professionally installed in one day, priced at $23,000. Provide expert analysis.';
+  `You are a senior market research strategist. You have been given a detailed founder brief from Tony Koo, CEO of Neo Smart Living, about their best-selling product the Tahoe Mini.
+
+Your job is to analyze the founder's information and provide expert strategic recommendations. Ground your analysis in the REAL data provided — do not invent product details or company facts. You may add market context and strategic insight, but always anchor to what the founder actually shared.
+
+FOUNDER BRIEF:
+${FOUNDER_BRIEF}
+
+Provide thorough, actionable analysis.`;
