@@ -172,9 +172,10 @@ function getRespondentConfig(
 
 function buildSystemPrompt(config: RespondentConfig): string {
   const d = config.demographics;
-  return `You are role-playing as a synthetic survey respondent named ${config.name}.
+  return `You are predicting how a real consumer would respond to a product survey. You are NOT trying to be helpful or positive — you are simulating realistic consumer behavior.
 
-PERSONA:
+CONSUMER PROFILE:
+- Name: ${config.name}
 - Segment: ${config.segment_name}
 - Age: ${d.Q21}
 - Household income: ${d.Q22}
@@ -189,19 +190,30 @@ ${config.psychographic}
 PERSONALITY VARIATION:
 ${config.variation}
 
-INSTRUCTIONS:
-1. Answer every survey question from the perspective of this persona.
-2. Your demographic answers (Q21-Q26) MUST match the persona demographics above exactly.
-3. For Q30 (attention check), you MUST answer 3 (Moderately interested).
-4. For all other questions, answer authentically as this persona would — vary your responses naturally, do not always pick the midpoint or extreme.
-5. Return ONLY a single JSON object with the exact keys specified. No explanations, no markdown.`;
+CRITICAL REALISM RULES:
+1. In real consumer surveys, most people are NOT interested in any given product. For high-ticket items ($20K+), typically only 15-25% of respondents rate purchase interest 4-5. Ratings of 1-2 are common and expected.
+2. You are permitted and EXPECTED to give low ratings (1 or 2) when this consumer would genuinely not be interested, cannot afford it, or sees no need.
+3. "None of the above" is a valid and common answer for concept preference (Q14). In real surveys, roughly 20-30% of respondents select it. Choose it if no concept is compelling enough to justify $23,000.
+4. $23,000 is a major purchase. Even high-income consumers hesitate on discretionary home spending. Factor in competing financial priorities, skepticism about unfamiliar products, and status quo bias (doing nothing is always an option).
+5. Do NOT rate every concept or value proposition highly. Real consumers find some concepts irrelevant or unappealing. A realistic respondent has 2-3 strong opinions and is lukewarm or negative on the rest.
+6. Satisficing is real: some respondents rush through surveys. If the persona variation suggests low engagement, cluster some responses near the midpoint (3).
+7. Your demographic answers (Q21-Q26) MUST match the persona demographics above exactly.
+8. For Q30 (attention check), you MUST answer 3.
+9. Return ONLY a single JSON object with the exact keys specified. No explanations, no markdown.`;
 }
 
 function buildUserPrompt(): string {
-  return `Complete the following survey as the persona described. Return ONLY a valid JSON object.
+  return `Predict how the consumer described above would complete this survey. Think about their financial constraints, competing priorities, and realistic level of interest before answering.
 
 Return a JSON object with exactly these keys and valid values:
 ${RESPONSE_SCHEMA}
+
+RESPONSE DISTRIBUTION GUIDANCE:
+- For Likert 1-5 questions: use the FULL scale. Ratings of 1 and 2 are appropriate when the consumer is uninterested, skeptical, or financially constrained. Do not default to 3-5.
+- For Q1 (purchase interest) and Q2 (purchase likelihood): remember this is a $23,000 discretionary purchase. Most consumers in any income bracket would rate these conservatively.
+- For Q14 (best concept): select "None of the above" if no concept is worth $23,000 to this consumer.
+- For Q6 (greatest barrier): "None — I have no significant concerns" should only be selected by genuinely enthusiastic, financially comfortable consumers.
+- For Q3 (use case): pick the ONE use case most relevant to the persona. Do not pick aspirational uses the persona would not actually pursue.
 
 IMPORTANT: Q20 must be a JSON array of 1-2 strings. All Likert-scale questions must be integers 1-5. Q30 must be 3. Return ONLY JSON, no other text.`;
 }
@@ -241,6 +253,30 @@ function validateResponse(
     result.Q20 = [result.Q20];
   } else if (!Array.isArray(result.Q20)) {
     result.Q20 = ["Social media ads (Facebook, Instagram)"];
+  }
+
+  // ── Acquiescence bias correction ──────────────────────────────────
+
+  // If >80% of Likert responses are 4-5, this respondent is exhibiting
+  // unrealistic positivity. Deflate the most extreme responses by 1 point.
+  // This is a product-agnostic correction based on survey methodology
+  // research showing LLMs systematically over-index on positive responses.
+  const likertKeys = ALL_NUMERIC_KEYS.filter(k => k !== "Q30");
+  const likertValues = likertKeys
+    .map(k => Number(result[k]))
+    .filter(v => !Number.isNaN(v));
+  const highCount = likertValues.filter(v => v >= 4).length;
+  const highRatio = likertValues.length > 0 ? highCount / likertValues.length : 0;
+
+  if (highRatio > 0.8) {
+    // Deflate: for each response rated 5, reduce to 4; for each 4, reduce to 3
+    // Only deflate non-barrier keys (barriers rated high = realistic concern)
+    const deflateKeys = likertKeys.filter(k => !k.startsWith("Q5_"));
+    for (const key of deflateKeys) {
+      const val = Number(result[key]);
+      if (val === 5) result[key] = 4;
+      else if (val === 4) result[key] = 3;
+    }
   }
 
   return result;

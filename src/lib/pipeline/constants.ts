@@ -491,12 +491,21 @@ export const OUTDOOR_OPTIONS: Record<number, string[]> = {
 };
 
 export const VARIATION_SEEDS: string[] = [
+  // Positive / neutral
   'You lean slightly more practical than most in your group.',
   'You are more design-conscious than the average person in your segment.',
-  'You tend to be more skeptical of new products and need strong evidence.',
   'You are an early adopter who gets excited about innovative solutions.',
   'You prioritize durability and long-term value over aesthetics.',
   'You are very social and often host gatherings at your home.',
+  // Skeptical / constrained (ensures realistic negativity in responses)
+  'You tend to be more skeptical of new products and need strong evidence before committing.',
+  'You are currently managing significant expenses and would not spend $23K on a non-essential purchase right now.',
+  'You over-research purchases and rarely commit. You have had multiple home projects stall at the consideration stage.',
+  'You are satisfied with your current home setup and see backyard structures as unnecessary for your lifestyle.',
+  'You are frugal and believe $23K could be better spent on travel, education, or paying down the mortgage.',
+  'You worry about HOA conflicts and neighborhood aesthetics. You avoid anything that might cause friction with neighbors.',
+  'You have decision fatigue from recent large purchases and are not looking to add another project to your plate.',
+  'You read every negative review first and weight risks more heavily than potential benefits.',
 ];
 
 // --- Emotion Taxonomy ---

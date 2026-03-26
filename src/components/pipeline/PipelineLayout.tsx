@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import Link from "next/link";
 import { StageCard } from "./StageCard";
 import { RunControls } from "./RunControls";
 import { useRealtimeProgress } from "@/lib/hooks/useRealtimeProgress";
@@ -307,6 +308,9 @@ export function PipelineLayout() {
         </h1>
         <p className="text-gray-400 text-lg">Neo Smart Living &mdash; Tahoe Mini Market Research</p>
         <p className="text-gray-500 text-sm mt-1">3-model triangulation &middot; 6 automated stages &middot; Full audit trail</p>
+        <Link href="/methodology" className="inline-flex items-center gap-1.5 mt-3 text-sm text-blue-400 hover:text-blue-300 transition-colors">
+          View Bias Mitigation Methodology →
+        </Link>
       </header>
 
       <RunControls
