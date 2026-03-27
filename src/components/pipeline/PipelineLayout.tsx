@@ -311,128 +311,203 @@ export function PipelineLayout() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <header className="mb-12 text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-950/40 border border-blue-800/50 text-blue-400 text-xs font-medium mb-4">
-          STAMP Methodology
-        </div>
-        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-          AYTM Research Pipeline
-        </h1>
-        <p className="text-gray-400 text-lg">Neo Smart Living &mdash; Tahoe Mini Market Research</p>
-        <p className="text-gray-500 text-sm mt-1">3-model triangulation &middot; 6 automated stages &middot; Full audit trail</p>
-        <Link href="/methodology" className="inline-flex items-center gap-1.5 mt-3 text-sm text-blue-400 hover:text-blue-300 transition-colors">
-          View Bias Mitigation Methodology →
-        </Link>
-      </header>
+    <div className="min-h-screen">
+      {/* ─── Hero Section ─────────────────────────────────────────────── */}
+      {mode === "idle" && (
+        <div className="relative overflow-hidden">
+          {/* Background gradient */}
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-950/30 via-gray-950 to-gray-950" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-600/5 rounded-full blur-3xl" />
 
-      <RunControls
-        mode={mode}
-        onStart={handleStart}
-        onReset={handleReset}
-        onAutoRun={mode === "live" && hasReadyStage ? handleAutoRun : undefined}
-        isAutoRunning={isAutoRunning}
-      />
+          <div className="relative max-w-5xl mx-auto px-6 pt-16 pb-12">
+            <div className="text-center animate-fade-in-up">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-950/50 border border-blue-700/30 text-blue-400 text-xs font-medium mb-6 backdrop-blur-sm">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                STAMP Methodology &middot; 3-Model Triangulation
+              </div>
 
-      {/* Previous runs — show when idle and runs exist */}
-      {mode === "idle" && previousRuns.length > 0 && (
-        <div className="mt-6 flex flex-col items-center">
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className="text-sm text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1"
-          >
-            <svg className={`w-3 h-3 transition-transform ${showHistory ? "rotate-90" : ""}`} fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-            </svg>
-            {previousRuns.length} previous run{previousRuns.length !== 1 ? "s" : ""}
-          </button>
+              {/* Title */}
+              <h1 className="text-5xl md:text-6xl font-bold mb-4 leading-tight">
+                <span className="bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">AI-Powered</span>
+                <br />
+                <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Market Research</span>
+              </h1>
 
-          {showHistory && (
-            <div className="mt-3 w-full max-w-lg space-y-2 animate-in slide-in-from-top-2 duration-200">
-              {previousRuns.map(run => (
-                <button
-                  key={run.id}
-                  onClick={() => handleLoadRun(run)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-gray-900 border border-gray-800 hover:border-gray-600 rounded-lg transition-colors text-left group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      run.status === "completed" ? "bg-green-500" :
-                      run.status === "error" ? "bg-red-500" :
-                      "bg-yellow-500"
-                    }`} />
-                    <div>
-                      <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
-                        {run.mode === "demo" ? "Demo" : "Live"} run
-                      </span>
-                      <span className="text-xs text-gray-600 ml-2">
-                        {run.id.slice(0, 8)}
-                      </span>
+              <p className="text-gray-400 text-lg max-w-xl mx-auto leading-relaxed mb-3">
+                Simulated consumer research pipeline for <span className="text-white font-medium">Neo Smart Living</span> &mdash;
+                from founder interviews to validated survey insights in 6 automated stages.
+              </p>
+
+              <Link href="/methodology" className="inline-flex items-center gap-1.5 text-sm text-blue-400/80 hover:text-blue-300 transition-colors mb-10">
+                View Bias Mitigation Methodology
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Link>
+
+              {/* Pipeline Overview Cards */}
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-2 max-w-3xl mx-auto mb-10">
+                {STAGES.map((s, i) => (
+                  <div key={s.id} className="group relative" style={{ animationDelay: `${i * 80}ms` }}>
+                    <div className="bg-gray-900/80 border border-gray-800/60 rounded-lg p-3 text-center hover:border-blue-700/40 hover:bg-blue-950/20 transition-all duration-200">
+                      <div className="text-lg font-bold text-gray-500 group-hover:text-blue-400 transition-colors">{s.id}</div>
+                      <div className="text-[10px] text-gray-600 group-hover:text-gray-400 transition-colors leading-tight mt-0.5">{s.name}</div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-500">
-                      {run.current_stage}/6 stages
-                    </span>
-                    {run.total_cost != null && run.total_cost > 0 && (
-                      <span className="text-xs text-emerald-500 font-mono">
-                        ${Number(run.total_cost).toFixed(2)}
-                      </span>
+                    {i < STAGES.length - 1 && (
+                      <div className="hidden md:block absolute top-1/2 -right-1.5 w-3 h-px bg-gray-700" />
                     )}
-                    {run.started_at && run.completed_at && (
-                      <span className="text-xs text-gray-500 font-mono">
-                        {formatDuration(run.started_at, run.completed_at)}
-                      </span>
-                    )}
-                    <span className="text-xs text-gray-600">
-                      {formatDate(run.started_at)}
-                    </span>
-                    <svg className="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
                   </div>
-                </button>
-              ))}
+                ))}
+              </div>
             </div>
-          )}
+
+            {/* Run Controls */}
+            <RunControls
+              mode={mode}
+              onStart={handleStart}
+              onReset={handleReset}
+              onAutoRun={mode === "live" && hasReadyStage ? handleAutoRun : undefined}
+              isAutoRunning={isAutoRunning}
+            />
+
+            {/* Previous Runs */}
+            {previousRuns.length > 0 && (
+              <div className="mt-8 flex flex-col items-center">
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="text-sm text-gray-600 hover:text-gray-400 transition-colors flex items-center gap-1.5"
+                >
+                  <svg className={`w-3 h-3 transition-transform duration-200 ${showHistory ? "rotate-90" : ""}`} fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                  {previousRuns.length} previous run{previousRuns.length !== 1 ? "s" : ""}
+                </button>
+
+                {showHistory && (
+                  <div className="mt-3 w-full max-w-lg space-y-2 animate-fade-in-down">
+                    {previousRuns.map(run => (
+                      <button
+                        key={run.id}
+                        onClick={() => handleLoadRun(run)}
+                        className="w-full flex items-center justify-between px-4 py-3 bg-gray-900/80 border border-gray-800/60 hover:border-gray-600 rounded-xl transition-all text-left group hover:bg-gray-900"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full ${
+                            run.status === "completed" ? "bg-emerald-500" :
+                            run.status === "error" ? "bg-red-500" :
+                            "bg-yellow-500"
+                          }`} />
+                          <div>
+                            <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
+                              {run.mode === "demo" ? "Demo" : "Live"} run
+                            </span>
+                            <span className="text-xs text-gray-700 ml-2 font-mono">
+                              {run.id.slice(0, 8)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-gray-600">
+                            {run.current_stage}/6
+                          </span>
+                          {run.total_cost != null && run.total_cost > 0 && (
+                            <span className="text-xs text-emerald-500/80 font-mono">
+                              ${Number(run.total_cost).toFixed(2)}
+                            </span>
+                          )}
+                          {run.started_at && run.completed_at && (
+                            <span className="text-xs text-gray-600 font-mono">
+                              {formatDuration(run.started_at, run.completed_at)}
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-700">
+                            {formatDate(run.started_at)}
+                          </span>
+                          <svg className="w-4 h-4 text-gray-700 group-hover:text-gray-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      <div className="mt-8 space-y-4">
-        {STAGES.map((stage) => (
-          <StageCard
-            key={stage.id}
-            stage={stage}
-            state={stages[stage.id]}
-            isExpanded={expandedStage === stage.id}
-            runId={runId}
-            onRun={() => handleRunStage(stage.id)}
-            onToggle={() => setExpandedStage(expandedStage === stage.id ? null : stage.id)}
-          />
-        ))}
-      </div>
-
+      {/* ─── Active Pipeline View ─────────────────────────────────────── */}
       {mode !== "idle" && (
-        <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-gray-900 border border-gray-800 text-xs text-gray-500">
-            <span>Run ID: <span className="font-mono text-gray-400">{runId?.slice(0, 8)}...</span></span>
-            <span className="w-px h-3 bg-gray-700" />
-            <span>Mode: <span className="text-gray-400">{mode}</span></span>
-            <span className="w-px h-3 bg-gray-700" />
-            <span>Duration: <span className="text-gray-400 font-mono">{formatDuration(runStartedAt, runCompletedAt) || "..."}</span></span>
-            {totalCost > 0 && (
-              <>
-                <span className="w-px h-3 bg-gray-700" />
-                <span>Cost: <span className="text-emerald-400 font-mono">${totalCost.toFixed(4)}</span></span>
-              </>
-            )}
-            {totalTokens > 0 && (
-              <>
-                <span className="w-px h-3 bg-gray-700" />
-                <span>Tokens: <span className="text-gray-400 font-mono">{totalTokens.toLocaleString()}</span></span>
-              </>
-            )}
+        <div className="max-w-5xl mx-auto px-6 py-8">
+          {/* Compact header for active runs */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold text-white">AYTM Pipeline</h1>
+              <span className="text-[10px] font-mono text-gray-600 bg-gray-800/80 px-2 py-0.5 rounded">
+                {runId?.slice(0, 8)}
+              </span>
+            </div>
+            <RunControls
+              mode={mode}
+              onStart={handleStart}
+              onReset={handleReset}
+              onAutoRun={mode === "live" && hasReadyStage ? handleAutoRun : undefined}
+              isAutoRunning={isAutoRunning}
+            />
           </div>
+
+          {/* Pipeline Progress Summary */}
+          <div className="mb-6">
+            <div className="flex items-center gap-1">
+              {STAGES.map((s) => {
+                const st = stages[s.id]?.status;
+                const bg = st === "completed" ? "bg-emerald-500" : st === "running" ? "bg-blue-500 animate-pulse" : st === "error" ? "bg-red-500" : "bg-gray-800";
+                return (
+                  <div key={s.id} className="flex-1 flex items-center gap-1">
+                    <div className={`h-1.5 flex-1 rounded-full ${bg} transition-all duration-500`} />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-between mt-2">
+              <span className="text-xs text-gray-600">{completedStages}/6 stages</span>
+              <div className="flex items-center gap-4 text-xs text-gray-600">
+                <span className="font-mono">{formatDuration(runStartedAt, runCompletedAt) || "..."}</span>
+                {totalCost > 0 && <span className="text-emerald-500/70 font-mono">${totalCost.toFixed(4)}</span>}
+                {totalTokens > 0 && <span className="font-mono">{totalTokens.toLocaleString()} tokens</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Stage Cards */}
+          <div className="space-y-3 stagger-children">
+            {STAGES.map((stage) => (
+              <StageCard
+                key={stage.id}
+                stage={stage}
+                state={stages[stage.id]}
+                isExpanded={expandedStage === stage.id}
+                runId={runId}
+                onRun={() => handleRunStage(stage.id)}
+                onToggle={() => setExpandedStage(expandedStage === stage.id ? null : stage.id)}
+              />
+            ))}
+          </div>
+
+          {/* Completion banner */}
+          {allCompleted && (
+            <div className="mt-8 text-center animate-fade-in-up">
+              <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl bg-emerald-950/30 border border-emerald-700/30 glow-green">
+                <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm text-emerald-300 font-medium">Pipeline Complete</span>
+                <span className="text-xs text-emerald-500/60 font-mono">{formatDuration(runStartedAt, runCompletedAt)}</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
