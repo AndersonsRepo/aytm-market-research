@@ -367,7 +367,7 @@ export function PipelineLayout() {
               mode={mode}
               onStart={handleStart}
               onReset={handleReset}
-              onAutoRun={mode === "live" && hasReadyStage ? handleAutoRun : undefined}
+              onAutoRun={undefined}
               isAutoRunning={isAutoRunning}
             />
 
@@ -453,7 +453,7 @@ export function PipelineLayout() {
               mode={mode}
               onStart={handleStart}
               onReset={handleReset}
-              onAutoRun={mode === "live" && hasReadyStage ? handleAutoRun : undefined}
+              onAutoRun={undefined}
               isAutoRunning={isAutoRunning}
             />
           </div>
