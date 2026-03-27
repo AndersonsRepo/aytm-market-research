@@ -61,6 +61,8 @@ export function PipelineLayout() {
   const [runStartedAt, setRunStartedAt] = useState<string | null>(null);
   const [runCompletedAt, setRunCompletedAt] = useState<string | null>(null);
   const autoRunTriggered = useRef(false);
+  const stagesRef = useRef(stages);
+  stagesRef.current = stages;
 
   // Fetch previous runs on mount
   useEffect(() => {
@@ -170,14 +172,29 @@ export function PipelineLayout() {
   const handleAutoRun = useCallback(async () => {
     setIsAutoRunning(true);
     for (const stage of STAGES) {
-      const currentStages = await new Promise<Record<number, StageState>>(resolve => {
-        setStages(prev => { resolve(prev); return prev; });
-      });
-      if (currentStages[stage.id]?.status === "completed") continue;
-      if (currentStages[stage.id]?.status !== "ready" && stage.id !== 1) continue;
+      // Read latest state via ref (not stale closure)
+      const current = stagesRef.current[stage.id];
+      if (current?.status === "completed") continue;
+      if (current?.status !== "ready" && stage.id !== 1) continue;
 
       const success = await handleRunStage(stage.id);
       if (!success) break;
+
+      // Wait for this stage to complete (or error) before moving on
+      await new Promise<void>((resolve) => {
+        const check = () => {
+          const s = stagesRef.current[stage.id]?.status;
+          if (s === "completed" || s === "error") {
+            resolve();
+          } else {
+            setTimeout(check, 500);
+          }
+        };
+        check();
+      });
+
+      // If stage errored, stop auto-run
+      if (stagesRef.current[stage.id]?.status === "error") break;
     }
     setIsAutoRunning(false);
   }, [handleRunStage]);
