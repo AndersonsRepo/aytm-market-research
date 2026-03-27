@@ -895,28 +895,49 @@ const STAGES_WITH_DETAIL_VIEW = new Set([1, 2, 3, 4, 5, 6]);
 export function StageCard({ stage, state, isExpanded, runId, onRun, onToggle }: StageCardProps) {
   const { status, progress, message, startedAt, completedAt, tokensUsed, costEstimate } = state;
 
-  const borderColor: Record<string, string> = {
-    locked: "border-gray-800",
-    ready: "border-blue-700 hover:border-blue-500",
-    running: "border-blue-500",
-    completed: "border-green-700 hover:border-green-600",
-    error: "border-red-700",
+  const stageStyles: Record<string, { border: string; bg: string; glow: string }> = {
+    locked:    { border: "border-gray-800/60", bg: "bg-gray-900/40", glow: "" },
+    ready:     { border: "border-blue-600/60 hover:border-blue-400/80", bg: "bg-gray-900", glow: "glow-blue" },
+    running:   { border: "border-blue-500/80", bg: "bg-blue-950/20", glow: "glow-blue" },
+    completed: { border: "border-emerald-600/40 hover:border-emerald-500/60", bg: "bg-emerald-950/10", glow: "" },
+    error:     { border: "border-red-600/60", bg: "bg-red-950/15", glow: "" },
   };
 
-  const bgColor: Record<string, string> = {
-    locked: "bg-gray-900/50",
-    ready: "bg-gray-900",
-    running: "bg-blue-950/30",
-    completed: "bg-green-950/20",
-    error: "bg-red-950/20",
-  };
+  const style = stageStyles[status] || stageStyles.locked;
 
-  const statusIcon: Record<string, string> = {
-    locked: "\uD83D\uDD12",
-    ready: "\u25B6\uFE0F",
-    running: "\u23F3",
-    completed: "\u2705",
-    error: "\u274C",
+  const statusIndicator: Record<string, React.ReactNode> = {
+    locked: (
+      <div className="w-10 h-10 rounded-xl bg-gray-800/80 flex items-center justify-center">
+        <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      </div>
+    ),
+    ready: (
+      <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center animate-float">
+        <span className="text-blue-400 font-bold text-sm">{stage.id}</span>
+      </div>
+    ),
+    running: (
+      <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center relative">
+        <span className="text-blue-300 font-bold text-sm">{stage.id}</span>
+        <div className="absolute inset-0 rounded-xl border-2 border-blue-400/60 border-t-transparent animate-spin" style={{ animationDuration: "1.5s" }} />
+      </div>
+    ),
+    completed: (
+      <div className="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center animate-stage-complete">
+        <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+    ),
+    error: (
+      <div className="w-10 h-10 rounded-xl bg-red-600/20 border border-red-500/30 flex items-center justify-center">
+        <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </div>
+    ),
   };
 
   const resultComponents: Record<number, (props: { runId: string }) => React.JSX.Element> = {
@@ -932,32 +953,63 @@ export function StageCard({ stage, state, isExpanded, runId, onRun, onToggle }: 
 
   return (
     <div
-      className={`rounded-lg border ${borderColor[status]} ${bgColor[status]} transition-all ${
-        status === "locked" ? "opacity-50" : ""
-      } ${status === "running" ? "animate-pulse" : ""}`}
+      className={`rounded-xl border ${style.border} ${style.bg} ${style.glow} transition-all duration-300 ${
+        status === "locked" ? "opacity-40" : ""
+      } relative`}
     >
+      {/* Running shimmer overlay */}
+      {status === "running" && <div className="absolute inset-0 rounded-xl animate-shimmer pointer-events-none" />}
+
       <div
-        className={`p-6 flex items-center justify-between ${
-          status === "completed" ? "cursor-pointer" : ""
+        className={`p-5 flex items-center justify-between relative ${
+          status === "completed" ? "cursor-pointer group" : ""
         }`}
         onClick={status === "completed" ? onToggle : undefined}
       >
         <div className="flex items-center gap-4">
-          <span className="text-2xl">{statusIcon[status]}</span>
+          {statusIndicator[status]}
           <div>
-            <h3 className="text-lg font-semibold">
-              Stage {stage.id}: {stage.name}
-            </h3>
-            <p className="text-gray-400 text-sm">{stage.description}</p>
-            {status === "running" && message && (
-              <p className="text-blue-400 text-xs mt-1">{message}</p>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-semibold text-white">
+                {stage.name}
+              </h3>
+              <span className="text-[10px] font-mono text-gray-600 bg-gray-800/80 px-1.5 py-0.5 rounded">
+                STAGE {stage.id}
+              </span>
+            </div>
+            <p className="text-gray-500 text-sm mt-0.5">{stage.description}</p>
+
+            {status === "running" && (
+              <div className="flex items-center gap-3 mt-2">
+                <div className="w-48 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full progress-bar animate-progress-pulse"
+                    style={{
+                      width: `${progress}%`,
+                      background: "linear-gradient(90deg, #3b82f6, #6366f1)",
+                    }}
+                  />
+                </div>
+                <span className="text-xs font-mono text-blue-400">{progress}%</span>
+                {message && (
+                  <span className="text-xs text-gray-500 truncate max-w-[200px]">{message}</span>
+                )}
+              </div>
             )}
+
             {status === "error" && message && (
-              <p className="text-red-400 text-xs mt-1">{message}</p>
+              <p className="text-red-400 text-xs mt-1.5 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                {message}
+              </p>
             )}
+
             {status === "completed" && startedAt && (
-              <div className="flex items-center gap-3 mt-1">
-                <span className="text-xs text-gray-500 font-mono">
+              <div className="flex items-center gap-3 mt-1.5">
+                <span className="text-xs text-gray-500 font-mono flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
                   {(() => {
                     const start = new Date(startedAt).getTime();
                     const end = completedAt ? new Date(completedAt).getTime() : Date.now();
@@ -968,10 +1020,15 @@ export function StageCard({ stage, state, isExpanded, runId, onRun, onToggle }: 
                   })()}
                 </span>
                 {tokensUsed > 0 && (
-                  <span className="text-xs text-gray-600">{tokensUsed.toLocaleString()} tokens</span>
+                  <span className="text-xs text-gray-600 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    {tokensUsed.toLocaleString()}
+                  </span>
                 )}
                 {costEstimate > 0 && (
-                  <span className="text-xs text-emerald-600 font-mono">${costEstimate.toFixed(4)}</span>
+                  <span className="text-xs text-emerald-500/80 font-mono">${costEstimate.toFixed(4)}</span>
                 )}
               </div>
             )}
@@ -979,22 +1036,10 @@ export function StageCard({ stage, state, isExpanded, runId, onRun, onToggle }: 
         </div>
 
         <div className="flex items-center gap-3">
-          {status === "running" && (
-            <div className="w-32">
-              <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-1 text-right">{progress}%</p>
-            </div>
-          )}
-
           {status === "ready" && (
             <button
               onClick={(e) => { e.stopPropagation(); onRun(); }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors"
+              className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-lg text-sm font-medium transition-all shadow-lg shadow-blue-900/25 hover:shadow-blue-800/40 hover:scale-[1.02] active:scale-[0.98]"
             >
               Run Stage
             </button>
@@ -1004,22 +1049,25 @@ export function StageCard({ stage, state, isExpanded, runId, onRun, onToggle }: 
             <Link
               href={`/stage/${stage.id}?runId=${runId}`}
               onClick={(e) => e.stopPropagation()}
-              className="px-3 py-1.5 bg-blue-900/50 hover:bg-blue-800/50 border border-blue-700/50 rounded-lg text-xs text-blue-300 font-medium transition-colors"
+              className="px-3 py-1.5 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 hover:border-gray-600 rounded-lg text-xs text-gray-300 font-medium transition-all hover:scale-[1.02]"
             >
-              View Details &rarr;
+              Full Analysis &rarr;
             </Link>
           )}
 
           {status === "completed" && (
-            <span className={`text-gray-500 text-sm transition-transform ${isExpanded ? "rotate-180" : ""}`}>
-              &#x25BC;
-            </span>
+            <svg
+              className={`w-4 h-4 text-gray-500 group-hover:text-gray-300 transition-all duration-200 ${isExpanded ? "rotate-180" : ""}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
           )}
         </div>
       </div>
 
       {isExpanded && status === "completed" && runId && ResultComponent && (
-        <div className="border-t border-gray-800 p-6">
+        <div className="border-t border-gray-800/60 p-6 animate-slide-expand">
           <ResultComponent runId={runId} />
         </div>
       )}
