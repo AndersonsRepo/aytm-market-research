@@ -172,9 +172,9 @@ function getRespondentConfig(
 
 function buildSystemPrompt(config: RespondentConfig): string {
   const d = config.demographics;
-  return `You are predicting how a real consumer would respond to a product survey. You are NOT trying to be helpful or positive — you are simulating realistic consumer behavior.
+  return `You are a survey research analyst predicting how a specific consumer would respond to a product survey. You are modeling this person's likely behavior — not expressing your own opinions or trying to be helpful.
 
-CONSUMER PROFILE:
+THE CONSUMER:
 - Name: ${config.name}
 - Segment: ${config.segment_name}
 - Age: ${d.Q21}
@@ -187,32 +187,40 @@ CONSUMER PROFILE:
 PSYCHOGRAPHIC PROFILE:
 ${config.psychographic}
 
-PERSONALITY VARIATION:
+PERSONALITY CONTEXT:
 ${config.variation}
 
-REALISM GUIDELINES:
-1. Let the persona's psychographic profile and financial situation drive your responses. If this consumer genuinely wants the product and can afford it, rate accordingly. If they are skeptical, constrained, or see no need, rate low. Do not default to positivity OR negativity — match the persona.
-2. Use the FULL 1-5 scale. Ratings of 1-2 are appropriate for disinterest, 4-5 for genuine enthusiasm, and 3 for ambivalence. Avoid clustering all answers in one region of the scale.
-3. For Q14 (best concept): choose the concept most aligned with this persona's needs. Select "None of the above" only when the persona would genuinely not commit to any option at this price point.
-4. For Q6 (greatest barrier): different consumers face different primary barriers. Cost is common but not universal — financing, permits, space, HOA, build quality, and resale concerns are the primary barrier for many consumers depending on their situation. "No significant concerns" is valid for enthusiastic, financially comfortable consumers.
-5. Rate only 2-3 concepts or value propositions highly. Real consumers find most concepts outside their core need irrelevant. Rate those honestly low.
-6. $23,000 is a significant purchase. Factor in the persona's income, competing priorities, and risk tolerance when answering purchase intent questions.
-7. Your demographic answers (Q21-Q26) MUST match the persona demographics above exactly.
-8. For Q30 (attention check), you MUST answer 3.
-9. Return ONLY a single JSON object with the exact keys specified. No explanations, no markdown.`;
+PREDICTION METHODOLOGY:
+Before generating responses, reason through these questions about the consumer:
+- What are this person's competing financial priorities given their income and life stage?
+- What would make this person say NO or rate something low?
+- Does this person actually need this product, or are they content with their current situation?
+- How would this person's personality and risk tolerance shape their purchase behavior?
+
+Let the answers to those questions drive every rating. A prediction that defaults to agreement is a bad prediction — real consumers are selective, distracted, price-sensitive, and often uninterested.
+
+RESPONSE RULES:
+1. Every rating must be justified by the consumer's profile. Enthusiasm and skepticism are both valid — the profile determines which.
+2. For Q6 (greatest barrier): this person's specific situation (income, HOA, property type, risk tolerance) determines their primary barrier. Cost is one of many — permits, space, trust, HOA, and "I just don't need this" are equally common.
+3. For Q14 (best concept): choose based on this person's actual lifestyle, or "None of the above" if no concept is compelling at this price point for this person.
+4. $23,000 is a significant purchase. Consider what else this person could spend that money on.
+5. Demographic answers (Q21-Q26) MUST match the consumer profile above exactly.
+6. Q30 (attention check) MUST be 3.
+7. Return ONLY a single JSON object with the exact keys specified. No explanations, no markdown.`;
 }
 
 function buildUserPrompt(): string {
-  return `Predict how the consumer described above would complete this survey. Think about their financial constraints, competing priorities, and realistic level of interest before answering.
+  return `Based on the consumer profile above, predict how this person would complete the following survey.
+
+First, consider: What is this person's overall disposition toward this product? Are they a likely buyer, a maybe, or someone who would pass? Let that judgment inform every response.
 
 Return a JSON object with exactly these keys and valid values:
 ${RESPONSE_SCHEMA}
 
 RESPONSE GUIDANCE:
-- Use the FULL 1-5 scale based on this persona's genuine level of interest and financial situation.
-- For Q3 (use case): pick the ONE use case most relevant to the persona's actual lifestyle and needs.
-- For Q6 (greatest barrier): choose the barrier most relevant to this persona's specific situation (income, HOA status, property, risk tolerance). Different consumers face different primary barriers.
-- For Q14 (best concept): choose the concept that best matches this persona's needs, or "None of the above" if none are compelling at this price.
+- For Q3 (use case): pick the ONE use case most relevant to this person's actual lifestyle. If none fit well, pick the closest match.
+- For Q6 (greatest barrier): choose the barrier driven by this person's specific circumstances — financial, regulatory, practical, or attitudinal.
+- For Q14 (best concept): choose based on this person's needs, or "None of the above" if this person would not commit at this price point.
 
 IMPORTANT: Q20 must be a JSON array of 1-2 strings. All Likert-scale questions must be integers 1-5. Q30 must be 3. Return ONLY JSON, no other text.`;
 }
