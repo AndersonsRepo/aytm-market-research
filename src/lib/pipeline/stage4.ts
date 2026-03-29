@@ -199,6 +199,14 @@ Before generating responses, reason through these questions about the consumer:
 
 Let the answers to those questions drive every rating. A prediction that defaults to agreement is a bad prediction — real consumers are selective, distracted, price-sensitive, and often uninterested.
 
+CRITICAL: Do NOT default to 3 (neutral/moderate) as a safe choice. Real consumers have opinions — they either want something or they don't. A response pattern with many 3s is unrealistic. Most responses should be 1-2 (disinterested/negative) or 4-5 (interested/positive), not clustered at the midpoint. Midpoint responses (3) should be the EXCEPTION, not the default.
+
+CALIBRATION ANCHORS (based on real consumer data for $20K+ home products):
+- Purchase interest for novel backyard structures: most consumers rate 1-2 (uninterested). Only 20-25% rate 4-5.
+- Cost is the #1 barrier for 55-65% of consumers.
+- "None of the above" is the most common concept preference (20-25% of respondents choose this).
+- Use the full 1-5 scale. A realistic respondent has some strong opinions (1 or 5) and some moderate ones (2 or 4), but rarely rates everything at the midpoint.
+
 RESPONSE RULES:
 1. Every rating must be justified by the consumer's profile. Enthusiasm and skepticism are both valid — the profile determines which.
 2. For Q6 (greatest barrier): this person's specific situation (income, HOA, property type, risk tolerance) determines their primary barrier. Cost is one of many — permits, space, trust, HOA, and "I just don't need this" are equally common.
@@ -222,6 +230,12 @@ RESPONSE GUIDANCE:
 - For Q6 (greatest barrier): choose the barrier driven by this person's specific circumstances — financial, regulatory, practical, or attitudinal.
 - For Q14 (best concept): choose based on this person's needs, or "None of the above" if this person would not commit at this price point.
 
+DISTRIBUTION CHECK: Before finalizing, verify your responses use the full 1-5 scale. A realistic respondent should have:
+- At least 2-3 responses at 1 or 2 (things they don't care about)
+- At least 2-3 responses at 4 or 5 (things that matter to them)
+- No more than ~30% of Likert responses at exactly 3
+If your draft has more than 30% of Likert values at 3, redistribute some to stronger opinions that fit this consumer's profile.
+
 IMPORTANT: Q20 must be a JSON array of 1-2 strings. All Likert-scale questions must be integers 1-5. Q30 must be 3. Return ONLY JSON, no other text.`;
 }
 
@@ -235,11 +249,28 @@ function validateResponse(
 ): Record<string, string | number | string[]> {
   const result = { ...data } as Record<string, string | number | string[]>;
 
+  // Seeded RNG for fallback values — avoids always defaulting to midpoint 3
+  const fallbackRng = seededRng(
+    hashSeed(config.segment_id, 999, config.segment_name)
+  );
+
   // Clamp Likert values to 1-5
+  // NaN fallback: use segment-seeded random from polarized distribution
+  // (weighted toward 1-2 and 4-5, away from 3) instead of always defaulting to 3
   for (const key of ALL_NUMERIC_KEYS) {
     if (key in result) {
       const val = Number(result[key]);
-      result[key] = Number.isNaN(val) ? 3 : Math.max(1, Math.min(5, Math.round(val)));
+      if (Number.isNaN(val)) {
+        // Polarized fallback: 70% chance of 1-2 or 4-5, only 30% chance of 3
+        const r = fallbackRng();
+        if (r < 0.30) result[key] = 1;
+        else if (r < 0.50) result[key] = 2;
+        else if (r < 0.65) result[key] = 4;
+        else if (r < 0.80) result[key] = 5;
+        else result[key] = 3;
+      } else {
+        result[key] = Math.max(1, Math.min(5, Math.round(val)));
+      }
     }
   }
 

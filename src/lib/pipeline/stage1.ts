@@ -72,6 +72,12 @@ async function withConcurrency<T>(
   return results;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // ─── Main Stage Function ──────────────────────────────────────────────────
 
 export async function runStage1(
@@ -129,13 +135,144 @@ export async function runStage1(
   // Execute with bounded concurrency
   const results = await withConcurrency(tasks, MAX_CONCURRENT_API_CALLS);
 
-  // Collect responses for synthesis
-  const responsesByQuestion: Record<string, Record<string, string>> = {};
-  for (const r of results) {
-    if (r.status === 'fulfilled') {
-      const { key, modelLabel, response } = r.value;
-      (responsesByQuestion[key] ??= {})[modelLabel] = response;
+  // ── Retry failed models ───────────────────────────────────────────────
+  // Check which (question, model) pairs failed. If an entire model has 0
+  // successes, retry all of that model's calls (up to 2 retries, 3s delay).
+
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY_MS = 3000;
+
+  // Mutable copy of all results so retries can fill in gaps
+  const allResults: PromiseSettledResult<{
+    key: string;
+    modelId: string;
+    modelLabel: string;
+    response: string;
+  }>[] = [...results];
+
+  // Track which original task index maps to which (key, modelId)
+  const taskIndex: { key: string; modelId: string }[] = questionEntries.flatMap(
+    ([key]) => MODEL_IDS.map((modelId) => ({ key, modelId })),
+  );
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    // Count successes per model
+    const successCountByModel: Record<string, number> = {};
+    for (const modelId of MODEL_IDS) {
+      successCountByModel[modelId] = 0;
     }
+    for (let i = 0; i < allResults.length; i++) {
+      if (allResults[i].status === 'fulfilled') {
+        successCountByModel[taskIndex[i].modelId]++;
+      }
+    }
+
+    // Find models with 0 successes
+    const failedModels = MODEL_IDS.filter(
+      (modelId) => successCountByModel[modelId] === 0,
+    );
+
+    if (failedModels.length === 0) break;
+
+    const failedLabels = failedModels.map((id) => MODEL_LABELS[id]).join(', ');
+    await updateProgress(
+      supabase,
+      runId,
+      90,
+      `Retrying failed models (attempt ${attempt}/${MAX_RETRIES}): ${failedLabels}`,
+    );
+
+    await delay(RETRY_DELAY_MS);
+
+    // Build retry tasks only for failed (question, model) pairs of failed models
+    const retryEntries: { originalIndex: number; task: () => Promise<{
+      key: string;
+      modelId: string;
+      modelLabel: string;
+      response: string;
+    }> }[] = [];
+
+    for (let i = 0; i < taskIndex.length; i++) {
+      const { key, modelId } = taskIndex[i];
+      if (!failedModels.includes(modelId)) continue;
+      // Only retry pairs that actually failed
+      if (allResults[i].status === 'fulfilled') continue;
+
+      const text = DISCOVERY_QUESTIONS[key as keyof typeof DISCOVERY_QUESTIONS];
+      const modelLabel = MODEL_LABELS[modelId];
+
+      retryEntries.push({
+        originalIndex: i,
+        task: async () => {
+          const result = await callOpenRouterWithUsage(
+            apiKey,
+            modelId,
+            DISCOVERY_SYSTEM_PROMPT,
+            text,
+            { temperature: 0.7, maxTokens: 2000 },
+          );
+
+          totalTokens += result.usage.total_tokens;
+          totalCost += estimateCost(modelId, result.usage);
+
+          await supabase.from('discovery_responses').insert({
+            run_id: runId,
+            model: modelLabel,
+            question_key: key,
+            question_label: key,
+            question_text: text,
+            response: result.content,
+          });
+
+          completedCalls++;
+
+          return { key, modelId, modelLabel, response: result.content };
+        },
+      });
+    }
+
+    const retryResults = await withConcurrency(
+      retryEntries.map((e) => e.task),
+      MAX_CONCURRENT_API_CALLS,
+    );
+
+    // Merge retry results back into allResults
+    for (let j = 0; j < retryEntries.length; j++) {
+      if (retryResults[j].status === 'fulfilled') {
+        allResults[retryEntries[j].originalIndex] = retryResults[j];
+      }
+    }
+  }
+
+  // ── Collect responses for synthesis ───────────────────────────────────
+
+  const responsesByQuestion: Record<string, Record<string, string>> = {};
+  const finalSuccessByModel: Record<string, number> = {};
+  for (const modelId of MODEL_IDS) {
+    finalSuccessByModel[modelId] = 0;
+  }
+
+  for (let i = 0; i < allResults.length; i++) {
+    const r = allResults[i];
+    if (r.status === 'fulfilled') {
+      const { key, modelId, modelLabel, response } = r.value;
+      (responsesByQuestion[key] ??= {})[modelLabel] = response;
+      finalSuccessByModel[modelId]++;
+    }
+  }
+
+  // Warn about models that still have 0 responses after retries
+  const stillFailedModels = MODEL_IDS.filter(
+    (id) => finalSuccessByModel[id] === 0,
+  );
+  if (stillFailedModels.length > 0) {
+    const warnLabels = stillFailedModels.map((id) => MODEL_LABELS[id]).join(', ');
+    await updateProgress(
+      supabase,
+      runId,
+      91,
+      `Warning: ${warnLabels} returned 0 responses after retries — synthesizing with ${MODEL_IDS.length - stillFailedModels.length}/${MODEL_IDS.length} models`,
+    );
   }
 
   // ── Synthesize into structured brief ──────────────────────────────────
