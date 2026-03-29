@@ -704,7 +704,7 @@ export function Stage5Analysis({ runId }: { runId: string }) {
 
 
       {/* ── STAMP Interpretation Agreement ── */}
-      {byType["stamp_interpretation_agreement", "survey_coverage_validation"]?.map((item: any, i: number) => {
+      {byType["stamp_interpretation_agreement"]?.map((item: any, i: number) => {
         const d = item.results || {};
 
         // Handle failure case
