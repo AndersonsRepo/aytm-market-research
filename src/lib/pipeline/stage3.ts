@@ -7,6 +7,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   MODEL_IDS,
+  RESPONSE_SCHEMA,
   MODEL_LABELS,
   MAX_CONCURRENT_API_CALLS,
 } from '@/lib/pipeline/constants';
@@ -310,6 +311,67 @@ export async function runStage3(
       question_counts: entry.questionCounts,
     });
   }
+
+  // ── Survey coverage validation: compare model proposals vs hardcoded instrument ─
+  await updateProgress(supabase, runId, 95, 'Validating survey coverage against instrument...');
+
+  // Parse the hardcoded RESPONSE_SCHEMA to extract question keys
+  const schemaLines = RESPONSE_SCHEMA.split('\n').filter(l => l.trim().startsWith('"Q'));
+  const hardcodedQuestions = schemaLines.map(l => {
+    const match = l.match(/"(Q\w+)"/);
+    return match ? match[1] : null;
+  }).filter(Boolean) as string[];
+
+  // Map model-proposed sections to hardcoded questions
+  const questionMapping: Array<{ hardcoded_key: string; mapped_sections: string[] }> = [];
+  let matchedCount = 0;
+
+  for (const qKey of hardcodedQuestions) {
+    const mappedSections: string[] = [];
+    // Check if any model's section labels or question IDs reference this question
+    for (const design of designs) {
+      for (const section of design.sections) {
+        const questions = Array.isArray(section.questions) ? section.questions : [];
+        const hasMatch = questions.some((q: any) => {
+          const qId = String(q?.id || '').toUpperCase();
+          return qId === qKey || qId.startsWith(qKey);
+        });
+        if (hasMatch && !mappedSections.includes(section.section_label || section.section_id)) {
+          mappedSections.push(section.section_label || section.section_id);
+        }
+      }
+    }
+    if (mappedSections.length > 0) matchedCount++;
+    questionMapping.push({ hardcoded_key: qKey, mapped_sections: mappedSections });
+  }
+
+  const coverageScore = hardcodedQuestions.length > 0
+    ? Math.round((matchedCount / hardcodedQuestions.length) * 1000) / 10
+    : 0;
+
+  // Identify themes models proposed that aren't in the hardcoded instrument
+  const allProposedSections = new Set<string>();
+  for (const design of designs) {
+    for (const section of design.sections) {
+      allProposedSections.add(section.section_label || section.section_id);
+    }
+  }
+  const coveredSections = new Set(questionMapping.flatMap(q => q.mapped_sections));
+  const gapSections = [...allProposedSections].filter(s => !coveredSections.has(s));
+
+  await supabase.from('analysis_results').insert({
+    run_id: runId,
+    analysis_type: 'survey_coverage_validation',
+    results: {
+      methodology: '3-model survey design proposals validated against hardcoded instrument (RESPONSE_SCHEMA)',
+      hardcoded_question_count: hardcodedQuestions.length,
+      matched_questions: matchedCount,
+      coverage_score: coverageScore,
+      question_mapping: questionMapping,
+      gap_sections: gapSections,
+      models_used: designs.map(d => d.modelLabel),
+    },
+  });
 
   await updateProgress(supabase, runId, 100, 'Survey design complete', 'completed');
 

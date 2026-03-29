@@ -165,11 +165,11 @@ export async function runStage6(
     );
 
     const responseSd = stdDev(likertValues);
-    const isStraightLining = responseSd < 0.5;
+    const uniqueValues = new Set(likertValues).size;
+    const isStraightLining = responseSd < 0.3 && uniqueValues < 3;
     if (isStraightLining) straightLiners++;
 
     // Unique values count
-    const uniqueValues = new Set(likertValues).size;
     const isLowUnique = uniqueValues < 3;
     if (isLowUnique) lowUniqueCount++;
 
@@ -216,7 +216,7 @@ export async function runStage6(
   });
 
   qualityChecks.push({
-    check_name: "Straight-Lining Detection (SD < 0.5)",
+    check_name: "Straight-Lining Detection (SD < 0.3 + unique < 3)",
     passed: straightLiners === 0,
     details: `${straightLiners}/${responses.length} flagged`,
     value: straightLiners,
@@ -353,7 +353,14 @@ export async function runStage6(
   // ── 3. Confidence intervals ───────────────────────────────────────────
 
   const confidenceIntervals: ConfidenceInterval[] = [];
-  const ciKeys = ["Q1", "Q2", "Q7"];
+  const ciKeys = [
+    "Q1",        // Purchase interest (primary outcome)
+    "Q2",        // Purchase likelihood (primary outcome)
+    "Q5_cost",   // Cost barrier (top barrier in real data)
+    "Q5_space",  // Space barrier
+    "Q5_quality",// Build quality concerns
+    "Q7",        // Home office use case (strongest use case)
+  ];
 
   // Overall CIs
   for (const key of ciKeys) {

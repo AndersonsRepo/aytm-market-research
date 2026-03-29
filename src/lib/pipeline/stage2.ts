@@ -464,8 +464,16 @@ export async function runStage2(
     for (const cls of allClassifications) {
       emotionCounts[cls.primary_emotion] = (emotionCounts[cls.primary_emotion] ?? 0) + 1;
     }
-    const consensusEmotion = Object.entries(emotionCounts)
-      .sort((a, b) => b[1] - a[1])[0][0];
+    const sorted = Object.entries(emotionCounts).sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1]; // majority vote
+      const avgA = allClassifications.filter(c => c.primary_emotion === a[0])
+        .reduce((s, c) => s + c.intensity, 0) / a[1];
+      const avgB = allClassifications.filter(c => c.primary_emotion === b[0])
+        .reduce((s, c) => s + c.intensity, 0) / b[1];
+      if (avgB !== avgA) return avgB - avgA; // highest intensity
+      return a[0].localeCompare(b[0]); // alphabetical
+    });
+    const consensusEmotion = sorted[0][0];
     const consensusResult = allClassifications.find(c => c.primary_emotion === consensusEmotion) || allClassifications[0];
 
     emotionMap.set(iv.interviewId, consensusResult);
@@ -561,20 +569,24 @@ export async function runStage2(
     MODEL_IDS.length,
   );
 
-  // Use first model's themes as the canonical set (persist these)
-  const primaryThemes = allThemeResults[0]?.themes || [];
-  for (const theme of primaryThemes) {
-    await supabase.from('interview_themes').insert({
-      run_id: runId,
-      source: 'llm',
-      theme_name: theme.theme_name,
-      description: theme.description || null,
-      frequency: theme.frequency || null,
-      keywords: theme.keywords || null,
-      supporting_quotes: theme.supporting_quotes || null,
-    });
+  // Persist themes from ALL models (not just the first)
+  const allThemes: typeof allThemeResults[0]['themes'] = [];
+  for (const { modelId, themes: modelThemes } of allThemeResults) {
+    for (const theme of modelThemes) {
+      await supabase.from('interview_themes').insert({
+        run_id: runId,
+        source: 'llm',
+        theme_name: theme.theme_name,
+        description: theme.description || null,
+        frequency: theme.frequency || null,
+        keywords: theme.keywords || null,
+        supporting_quotes: theme.supporting_quotes || null,
+        model: MODEL_LABELS[modelId],
+      });
+      allThemes.push(theme);
+    }
   }
-  const themes = primaryThemes;
+  const themes = allThemes;
 
   // Compute theme overlap: how many models identified similar themes
   const allModelThemes = allThemeResults.map(r => ({

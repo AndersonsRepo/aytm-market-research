@@ -212,7 +212,8 @@ export type AnalysisType =
   | 'disagreement_analysis'
   | 'stamp_emotion_classification'
   | 'stamp_theme_extraction'
-  | 'stamp_interpretation_agreement';
+  | 'stamp_interpretation_agreement'
+  | 'survey_coverage_validation';
 
 export interface AnalysisResult {
   id?: string;

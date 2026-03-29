@@ -40,6 +40,51 @@ export async function POST(
     .eq("run_id", runId)
     .eq("stage", stageNum);
 
+  // ── Fix 8: Clean previous data on stage retry ──────────────────────────
+  const STAGE_TABLES: Record<number, string[]> = {
+    1: ["discovery_responses", "discovery_briefs"],
+    2: ["interview_transcripts", "interview_analysis", "interview_themes"],
+    3: ["survey_designs", "survey_coverage"],
+    4: ["survey_responses"],
+    5: [], // analysis_results handled specially below
+    6: ["respondent_scores", "validation_reports"],
+  };
+  const tablesToClean = STAGE_TABLES[stageNum] || [];
+  for (const table of tablesToClean) {
+    await supabase.from(table).delete().eq("run_id", runId);
+  }
+  if (stageNum === 5) {
+    const stage5Types = [
+      "descriptive_likert", "model_comparison_likert", "kruskal_wallis",
+      "barrier_heatmap", "segment_profiles", "descriptive_categorical",
+      "inter_llm_reliability", "benchmark_comparison", "stamp_interpretation_agreement", "disagreement_analysis",
+    ];
+    await supabase.from("analysis_results").delete().eq("run_id", runId).in("analysis_type", stage5Types);
+  } else if (stageNum === 2) {
+    const stage2Types = ["stamp_emotion_classification", "stamp_theme_extraction"];
+    await supabase.from("analysis_results").delete().eq("run_id", runId).in("analysis_type", stage2Types);
+  }
+  else if (stageNum === 3) {
+    const stage3Types = ["survey_coverage_validation"];
+    await supabase.from("analysis_results").delete().eq("run_id", runId).in("analysis_type", stage3Types);
+  }
+  // ── Fix 10: Cost ceiling check ──────────────────────────────────────────
+  const COST_CEILING = 5.00;
+  const { data: priorStages } = await supabase
+    .from("stage_progress").select("cost_estimate").eq("run_id", runId);
+  const accumulatedCost = (priorStages || []).reduce(
+    (sum: number, s: { cost_estimate: string | number | null }) =>
+      sum + (parseFloat(String(s.cost_estimate)) || 0), 0);
+  if (accumulatedCost >= COST_CEILING) {
+    await supabase.from("stage_progress").update({
+      status: "error",
+      error_message: `Cost ceiling exceeded: $${accumulatedCost.toFixed(2)} >= $${COST_CEILING}`,
+      completed_at: new Date().toISOString(),
+    }).eq("run_id", runId).eq("stage", stageNum);
+    return NextResponse.json(
+      { error: `Cost ceiling of $${COST_CEILING} exceeded` }, { status: 429 });
+  }
+
   try {
     // Dynamic import to avoid loading all stages upfront
     const runners: Record<
@@ -118,6 +163,11 @@ export async function POST(
       })
       .eq("run_id", runId)
       .eq("stage", stageNum);
+
+    // Fix 9: Update current_stage even on error
+    await supabase.from("pipeline_runs")
+      .update({ current_stage: stageNum })
+      .eq("id", runId);
 
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -236,6 +236,7 @@ function InterviewResults({ runId }: { runId: string }) {
 function SurveyDesignResults({ runId }: { runId: string }) {
   const [designs, setDesigns] = useState<any[]>([]);
   const [coverage, setCoverage] = useState<any[]>([]);
+  const [validation, setValidation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -243,9 +244,11 @@ function SurveyDesignResults({ runId }: { runId: string }) {
     Promise.all([
       supabase.from("survey_designs").select("*").eq("run_id", runId),
       supabase.from("survey_coverage").select("*").eq("run_id", runId),
-    ]).then(([dRes, cRes]) => {
+      supabase.from("analysis_results").select("*").eq("run_id", runId).eq("analysis_type", "survey_coverage_validation").limit(1).single(),
+    ]).then(([dRes, cRes, vRes]) => {
       setDesigns(dRes.data || []);
       setCoverage(cRes.data || []);
+      setValidation(vRes.data);
       setLoading(false);
     });
   }, [runId]);
@@ -324,6 +327,51 @@ function SurveyDesignResults({ runId }: { runId: string }) {
           );
         })}
       </div>
+
+      {validation && validation.results && (
+        <>
+          <SectionHeader>Instrument Coverage Validation</SectionHeader>
+          <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-emerald-400 uppercase tracking-wider">3-Model Validation vs Hardcoded Survey</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                (validation.results.coverage_score ?? 0) >= 70
+                  ? 'bg-emerald-900/50 text-emerald-400'
+                  : (validation.results.coverage_score ?? 0) >= 40
+                  ? 'bg-yellow-900/50 text-yellow-400'
+                  : 'bg-red-900/50 text-red-400'
+              }`}>
+                {validation.results.coverage_score}% coverage
+              </span>
+            </div>
+            <p className="text-xs text-gray-500">{validation.results.methodology}</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center">
+                <div className="text-lg font-bold text-white">{validation.results.hardcoded_question_count}</div>
+                <div className="text-[10px] text-gray-500">Instrument Qs</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-white">{validation.results.matched_questions}</div>
+                <div className="text-[10px] text-gray-500">Matched</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-white">{(validation.results.gap_sections || []).length}</div>
+                <div className="text-[10px] text-gray-500">Gap Sections</div>
+              </div>
+            </div>
+            {(validation.results.gap_sections || []).length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 font-medium mb-1">Model-proposed sections not in hardcoded instrument:</p>
+                <div className="flex flex-wrap gap-1">
+                  {validation.results.gap_sections.map((s: string, idx: number) => (
+                    <span key={idx} className="text-[10px] bg-yellow-900/30 text-yellow-300 px-2 py-0.5 rounded">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -924,6 +972,23 @@ function AnalysisResults({ runId }: { runId: string }) {
             {/* ── stamp_interpretation_agreement ── */}
             if (type === "stamp_interpretation_agreement") {
               const d = data as Record<string, any>;
+
+              if (d.status === "failed") {
+                return (
+                  <div key={i} className="bg-red-950/20 border border-red-800 rounded-lg p-4 mb-3 space-y-2">
+                    <span className="text-xs font-medium text-red-400 uppercase tracking-wider">STAMP Interpretation — Failed</span>
+                    <p className="text-sm text-red-300">{d.message}</p>
+                    {(d.failures || []).length > 0 && (
+                      <div className="space-y-1">
+                        {d.failures.map((f: { model: string; error: string }, idx: number) => (
+                          <div key={idx} className="text-xs text-red-400/70">{f.model}: {f.error.slice(0, 100)}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               const agreementRate = d.agreement_rate ?? 0;
               const fields = (d.classification_fields || []) as Array<{ field: string; values: Record<string, string>; unanimous: boolean; unique_answers: number }>;
               const passesStamp = d.passes_stamp;
@@ -1120,7 +1185,7 @@ function ValidationResults({ runId }: { runId: string }) {
                 </tr>
               </thead>
               <tbody>
-                {(Array.isArray(ciItems) ? ciItems : Object.entries(ciItems)).slice(0, 8).map((item: any, i: number) => {
+                {(Array.isArray(ciItems) ? ciItems : Object.entries(ciItems)).slice(0, 20).map((item: any, i: number) => {
                   const [key, val] = Array.isArray(item) && typeof item[0] === "string" ? item : [item.metric || `Metric ${i + 1}`, item];
                   const ci = typeof val === "object" ? val : {};
                   return (
@@ -1134,6 +1199,9 @@ function ValidationResults({ runId }: { runId: string }) {
                 })}
               </tbody>
             </table>
+            {(Array.isArray(ciItems) ? ciItems : Object.entries(ciItems)).length > 20 && (
+              <p className="text-xs text-gray-600 mt-2">Showing 20 of {(Array.isArray(ciItems) ? ciItems : Object.entries(ciItems)).length} confidence intervals</p>
+            )}
           </div>
         </>
       )}

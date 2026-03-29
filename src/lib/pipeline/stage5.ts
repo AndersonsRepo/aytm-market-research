@@ -727,6 +727,8 @@ Return ONLY the JSON object.`;
   let interpTokens = 0;
   let interpCost = 0;
 
+  let interpretationFailures: { model: string; error: string }[] = [];
+
   for (const modelId of MODEL_IDS) {
     try {
       const result = await callOpenRouterWithUsage(apiKey, modelId, interpretationPromptSystem, interpretationPromptUser, {
@@ -737,88 +739,102 @@ Return ONLY the JSON object.`;
       interpCost += estimateCost(modelId, result.usage);
       const parsed = parseJsonResponse<Record<string, string>>(result.content);
       interpretationResults.set(modelId, parsed);
-    } catch {
-      // If one model fails, skip it
+    } catch (err) {
+      interpretationFailures.push({ model: MODEL_LABELS[modelId], error: String(err) });
     }
   }
 
-  // Compute agreement: for each classification field, do all models agree?
-  const classificationFields = [
-    'dominant_barrier', 'dominant_barrier_confidence', 'primary_use_case',
-    'purchase_intent_level', 'most_interested_segment', 'least_interested_segment',
-    'best_concept', 'market_readiness',
-  ];
 
-  const fieldAgreement: Record<string, unknown>[] = [];
-  let agreementCount = 0;
+  // If all models failed, save a failure record
+  if (interpretationResults.size === 0) {
+    await saveAnalysis(supabase, runId, "stamp_interpretation_agreement", {
+      status: "failed",
+      message: "All models failed interpretation classification",
+      failures: interpretationFailures,
+    });
 
-  for (const field of classificationFields) {
-    const values = [...interpretationResults.entries()].map(([modelId, result]) => ({
-      model: MODEL_LABELS[modelId],
-      value: result[field] ?? 'missing',
-    }));
-    const uniqueValues = new Set(values.map(v => v.value));
-    const unanimous = uniqueValues.size === 1;
-    if (unanimous) agreementCount++;
+    // Update progress to reflect failure
+    await updateProgress(supabase, runId, 95, `STAMP interpretation: all ${MODEL_IDS.length} models failed`);
+  }
+  if (interpretationResults.size > 0) {
+    // Compute agreement: for each classification field, do all models agree?
+    const classificationFields = [
+      'dominant_barrier', 'dominant_barrier_confidence', 'primary_use_case',
+      'purchase_intent_level', 'most_interested_segment', 'least_interested_segment',
+      'best_concept', 'market_readiness',
+    ];
 
-    fieldAgreement.push({
-      field,
-      values: Object.fromEntries(values.map(v => [v.model, v.value])),
-      unanimous,
-      unique_answers: uniqueValues.size,
+    const fieldAgreement: Record<string, unknown>[] = [];
+    let agreementCount = 0;
+
+    for (const field of classificationFields) {
+      const values = [...interpretationResults.entries()].map(([modelId, result]) => ({
+        model: MODEL_LABELS[modelId],
+        value: result[field] ?? 'missing',
+      }));
+      const uniqueValues = new Set(values.map(v => v.value));
+      const unanimous = uniqueValues.size === 1;
+      if (unanimous) agreementCount++;
+
+      fieldAgreement.push({
+        field,
+        values: Object.fromEntries(values.map(v => [v.model, v.value])),
+        unanimous,
+        unique_answers: uniqueValues.size,
+      });
+    }
+
+    const agreementRate = classificationFields.length > 0
+      ? Math.round((agreementCount / classificationFields.length) * 1000) / 10
+      : 0;
+
+    // Build ordinal ratings for Krippendorff's alpha on interpretation
+    // Map categorical values to ordinal indices for alpha calculation
+    const fieldValueMaps: Record<string, string[]> = {
+      dominant_barrier: ['cost', 'permits', 'hoa', 'space', 'financing', 'quality', 'resale', 'none'],
+      dominant_barrier_confidence: ['weak', 'moderate', 'strong'],
+      primary_use_case: ['home_office', 'storage', 'wellness', 'guest_suite', 'creative_studio', 'adventure', 'playroom'],
+      purchase_intent_level: ['very_low', 'low', 'moderate', 'high', 'very_high'],
+      best_concept: ['home_office', 'wellness', 'guest_suite', 'adventure', 'simplicity', 'none'],
+      market_readiness: ['not_ready', 'early_stage', 'moderate_interest', 'strong_interest'],
+    };
+
+    // For fields with ordinal mapping, compute alpha
+    const modelIds = [...interpretationResults.keys()].sort();
+    const alphaFields: Record<string, number> = {};
+
+    for (const [field, valueList] of Object.entries(fieldValueMaps)) {
+      const ratings: (number | null)[][] = modelIds.map(modelId => {
+        const val = interpretationResults.get(modelId)?.[field] ?? '';
+        const idx = valueList.indexOf(val);
+        return [idx >= 0 ? idx + 1 : null];
+      });
+      // Alpha needs at least 2 items, but we only have 1 item per field
+      // So instead, track per-field agreement as binary (unanimous vs not)
+      const values = modelIds.map(m => interpretationResults.get(m)?.[field]).filter(Boolean);
+      const allSame = new Set(values).size === 1;
+      alphaFields[field] = allSame ? 1 : 0;
+    }
+
+    // Overall interpretation alpha: proportion of unanimous fields
+    const interpAlpha = Object.values(alphaFields).length > 0
+      ? Math.round((Object.values(alphaFields).reduce((s, v) => s + v, 0) / Object.values(alphaFields).length) * 10000) / 10000
+      : 0;
+
+    await saveAnalysis(supabase, runId, "stamp_interpretation_agreement", {
+      methodology: 'STAMP: 3-model independent interpretation of aggregate survey data',
+      models: modelIds.map(m => MODEL_LABELS[m]),
+      classification_fields: fieldAgreement,
+      unanimous_fields: agreementCount,
+      total_fields: classificationFields.length,
+      agreement_rate: agreementRate,
+      interpretation_alpha: interpAlpha,
+      interpretation: interpAlpha >= 0.75 ? 'strong' : interpAlpha >= 0.5 ? 'moderate' : 'weak',
+      passes_stamp: interpAlpha >= 0.667,
+      tokens_used: interpTokens,
+      cost_estimate: Math.round(interpCost * 10000) / 10000,
     });
   }
-
-  const agreementRate = classificationFields.length > 0
-    ? Math.round((agreementCount / classificationFields.length) * 1000) / 10
-    : 0;
-
-  // Build ordinal ratings for Krippendorff's alpha on interpretation
-  // Map categorical values to ordinal indices for alpha calculation
-  const fieldValueMaps: Record<string, string[]> = {
-    dominant_barrier: ['cost', 'permits', 'hoa', 'space', 'financing', 'quality', 'resale', 'none'],
-    dominant_barrier_confidence: ['weak', 'moderate', 'strong'],
-    primary_use_case: ['home_office', 'storage', 'wellness', 'guest_suite', 'creative_studio', 'adventure', 'playroom'],
-    purchase_intent_level: ['very_low', 'low', 'moderate', 'high', 'very_high'],
-    best_concept: ['home_office', 'wellness', 'guest_suite', 'adventure', 'simplicity', 'none'],
-    market_readiness: ['not_ready', 'early_stage', 'moderate_interest', 'strong_interest'],
-  };
-
-  // For fields with ordinal mapping, compute alpha
-  const modelIds = [...interpretationResults.keys()].sort();
-  const alphaFields: Record<string, number> = {};
-
-  for (const [field, valueList] of Object.entries(fieldValueMaps)) {
-    const ratings: (number | null)[][] = modelIds.map(modelId => {
-      const val = interpretationResults.get(modelId)?.[field] ?? '';
-      const idx = valueList.indexOf(val);
-      return [idx >= 0 ? idx + 1 : null];
-    });
-    // Alpha needs at least 2 items, but we only have 1 item per field
-    // So instead, track per-field agreement as binary (unanimous vs not)
-    const values = modelIds.map(m => interpretationResults.get(m)?.[field]).filter(Boolean);
-    const allSame = new Set(values).size === 1;
-    alphaFields[field] = allSame ? 1 : 0;
-  }
-
-  // Overall interpretation alpha: proportion of unanimous fields
-  const interpAlpha = Object.values(alphaFields).length > 0
-    ? Math.round((Object.values(alphaFields).reduce((s, v) => s + v, 0) / Object.values(alphaFields).length) * 10000) / 10000
-    : 0;
-
-  await saveAnalysis(supabase, runId, "stamp_interpretation_agreement", {
-    methodology: 'STAMP: 3-model independent interpretation of aggregate survey data',
-    models: modelIds.map(m => MODEL_LABELS[m]),
-    classification_fields: fieldAgreement,
-    unanimous_fields: agreementCount,
-    total_fields: classificationFields.length,
-    agreement_rate: agreementRate,
-    interpretation_alpha: interpAlpha,
-    interpretation: interpAlpha >= 0.75 ? 'strong' : interpAlpha >= 0.5 ? 'moderate' : 'weak',
-    passes_stamp: interpAlpha >= 0.667,
-    tokens_used: interpTokens,
-    cost_estimate: Math.round(interpCost * 10000) / 10000,
-  });
 
   // ── 9. Disagreement analysis (STAMP: where models diverge) ──────────
 

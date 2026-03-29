@@ -1048,8 +1048,8 @@ export async function seedDemoData(supabase: SupabaseClient, runId: string): Pro
         data.Q25 = demo.Q25;
         data.Q26 = demo.Q26;
 
-        // Attention check
-        data.Q30 = 3;
+        // Attention check (~8% realistic failure rate)
+        data.Q30 = rng.next() < 0.08 ? rng.choice([1, 2, 4, 5]) : 3;
 
         const respondentId = `S${segment.id}_${modelLabel}_${respIndex + 1}`;
 

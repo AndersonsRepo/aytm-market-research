@@ -274,9 +274,6 @@ function validateResponse(
     }
   }
 
-  // Force Q30 attention check
-  result.Q30 = 3;
-
   // Force demographics to match persona
   const d = config.demographics;
   result.Q21 = d.Q21;
