@@ -429,10 +429,19 @@ export function PipelineLayout() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </Link>
+                <Link href="/insights" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-violet-600/20 border border-violet-500/30 text-violet-300 text-sm font-medium hover:bg-violet-600/30 hover:border-violet-500/50 transition-all duration-200 backdrop-blur-sm">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  Insights
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </Link>
               </div>
 
               {/* Pipeline Overview Cards */}
-              <div className="grid grid-cols-4 md:grid-cols-8 gap-2 max-w-5xl mx-auto mb-10">
+              <div className="grid grid-cols-3 md:grid-cols-9 gap-2 max-w-5xl mx-auto mb-10">
                 {STAGES.map((s, i) => (
                   <div key={s.id} className="group relative" style={{ animationDelay: `${i * 80}ms` }}>
                     <div className="bg-gray-900/80 border border-gray-800/60 rounded-lg p-3 text-center hover:border-blue-700/40 hover:bg-blue-950/20 transition-all duration-200">
@@ -465,6 +474,17 @@ export function PipelineLayout() {
                       </svg>
                     </div>
                     <div className="text-[10px] text-emerald-400/70 group-hover:text-emerald-300 transition-colors leading-tight mt-0.5">GenAI Docs</div>
+                  </div>
+                </Link>
+                {/* Insights card */}
+                <Link href="/insights" className="group relative" style={{ animationDelay: '640ms' }}>
+                  <div className="bg-violet-950/40 border border-violet-700/30 rounded-lg p-3 text-center hover:border-violet-500/50 hover:bg-violet-900/30 transition-all duration-200 h-full flex flex-col justify-center">
+                    <div className="text-lg font-bold text-violet-400 group-hover:text-violet-300 transition-colors">
+                      <svg className="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                    </div>
+                    <div className="text-[10px] text-violet-400/70 group-hover:text-violet-300 transition-colors leading-tight mt-0.5">Insights</div>
                   </div>
                 </Link>
               </div>

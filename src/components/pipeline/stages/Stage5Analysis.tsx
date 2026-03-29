@@ -703,9 +703,93 @@ export function Stage5Analysis({ runId }: { runId: string }) {
       })}
 
 
+      {/* ── STAMP Interpretation Agreement ── */}
+      {byType["stamp_interpretation_agreement"]?.map((item: any, i: number) => {
+        const d = item.results || {};
+
+        // Handle failure case
+        if (d.status === "failed") {
+          return (
+            <div key={`stamp-interp-${i}`} className="mb-6">
+              <SectionHeader>STAMP Interpretation Agreement</SectionHeader>
+              <div className="bg-red-950/20 border border-red-800 rounded-lg p-4 space-y-2">
+                <span className="text-xs font-medium text-red-400 uppercase tracking-wider">Failed</span>
+                <p className="text-sm text-red-300">{d.message}</p>
+                {(d.failures || []).length > 0 && (
+                  <div className="space-y-1">
+                    {d.failures.map((f: { model: string; error: string }, idx: number) => (
+                      <div key={idx} className="text-xs text-red-400/70">{f.model}: {f.error?.slice(0, 100)}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        const agreementRate = d.agreement_rate ?? 0;
+        const fields = (d.classification_fields || []) as Array<{ field: string; values: Record<string, string>; unanimous: boolean; unique_answers: number }>;
+        const passesStamp = d.passes_stamp;
+
+        return (
+          <div key={`stamp-interp-${i}`} className="mb-6">
+            <SectionHeader>STAMP Interpretation Agreement</SectionHeader>
+            <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-blue-400 uppercase tracking-wider">3-Model Agreement</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${passesStamp ? 'bg-emerald-900/50 text-emerald-400' : 'bg-yellow-900/50 text-yellow-400'}`}>
+                  {agreementRate}% agreement{passesStamp ? ' — PASSES' : ''}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500">{d.methodology}</p>
+              <div className="grid grid-cols-3 gap-3 mb-2">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-white">{d.unanimous_fields}/{d.total_fields}</div>
+                  <div className="text-[10px] text-gray-500">Unanimous</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-white">{agreementRate}%</div>
+                  <div className="text-[10px] text-gray-500">Agreement Rate</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-white">{d.interpretation_alpha?.toFixed(3) ?? '—'}</div>
+                  <div className="text-[10px] text-gray-500">Interp. α</div>
+                </div>
+              </div>
+              {fields.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-gray-400 border-b border-gray-700">
+                        <th className="text-left py-2">Classification</th>
+                        {(d.models || []).map((m: string) => <th key={m} className="text-center py-2">{m}</th>)}
+                        <th className="text-center py-2">Agree?</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fields.map((f) => (
+                        <tr key={f.field} className="border-b border-gray-800/50">
+                          <td className="py-1.5 text-gray-400">{f.field.replace(/_/g, ' ')}</td>
+                          {(d.models || []).map((m: string) => (
+                            <td key={m} className="text-center py-1.5 text-gray-300">{f.values[m] || '—'}</td>
+                          ))}
+                          <td className="text-center py-1.5">
+                            {f.unanimous ? <span className="text-emerald-400">✓</span> : <span className="text-yellow-400">✗</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
       {/* ── Fallback for unknown types ── */}
       {Object.entries(byType)
-        .filter(([type]) => !["cross_tabulation", "descriptive_likert", "model_comparison_likert", "kruskal_wallis", "barrier_heatmap", "segment_profiles", "descriptive_categorical", "inter_llm_reliability", "benchmark_comparison", "disagreement_analysis"].includes(type))
+        .filter(([type]) => !["cross_tabulation", "descriptive_likert", "model_comparison_likert", "kruskal_wallis", "barrier_heatmap", "segment_profiles", "descriptive_categorical", "inter_llm_reliability", "benchmark_comparison", "disagreement_analysis", "stamp_emotion_classification", "stamp_theme_extraction", "stamp_interpretation_agreement"].includes(type))
         .map(([type, items]) => (
           <div key={type}>
             <SectionHeader>{type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</SectionHeader>
