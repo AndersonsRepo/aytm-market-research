@@ -21,6 +21,7 @@ import {
 } from '@/lib/pipeline/constants';
 import { callOpenRouterWithUsage, parseJsonResponse, estimateCost } from '@/lib/pipeline/openrouter';
 import { vaderSentiment } from '@/lib/pipeline/vader';
+import { krippendorffAlpha } from '@/lib/pipeline/stats';
 
 // ─── Progress Helper ──────────────────────────────────────────────────────
 
@@ -219,6 +220,7 @@ function analyzeSentiment(
 
 async function classifyEmotion(
   apiKey: string,
+  modelId: string,
   personaId: string,
   personaName: string,
   iq6: string,
@@ -231,6 +233,21 @@ async function classifyEmotion(
 Classify the respondent's emotional reaction to the Tahoe Mini product concept.
 
 Use ONLY these emotions: ${taxonomyStr}
+
+CLASSIFICATION CODEBOOK:
+- "excitement": Respondent expresses enthusiasm, eagerness, or positive anticipation about the product concept
+- "skepticism": Respondent questions claims, doubts value proposition, or expresses distrust
+- "anxiety": Respondent worries about cost, risk, complexity, or making the wrong decision
+- "curiosity": Respondent asks questions, wants to learn more, but hasn't formed a strong opinion yet
+- "indifference": Respondent shows little engagement — the product doesn't connect to their needs
+- "aspiration": Respondent connects the product to their ideal lifestyle or future goals
+- "frustration": Respondent expresses annoyance at barriers, limitations, or unmet needs
+- "pragmatism": Respondent evaluates purely on practical terms — cost/benefit, ROI, logistics
+
+BOUNDARY CASES:
+- If the respondent mixes excitement about the concept with anxiety about cost, classify primary as "anxiety" if cost dominates their language, "excitement" if the vision dominates
+- "Curiosity" requires genuine questions or information-seeking. Polite interest without questions is "indifference"
+- "Pragmatism" vs "skepticism": pragmatism accepts the product category but evaluates this specific offer; skepticism questions whether the category itself makes sense
 
 Return ONLY a JSON object with:
 - "primary_emotion": one of the emotions above
@@ -246,12 +263,12 @@ IQ7 (Barriers & drivers): ${iq7}
 
 Classify the emotional tone.`;
 
-  const result = await callOpenRouterWithUsage(apiKey, 'openai/gpt-4.1-mini', system, user, {
+  const result = await callOpenRouterWithUsage(apiKey, modelId, system, user, {
     temperature: 0.3,
     maxTokens: 300,
   });
 
-  trackUsage('openai/gpt-4.1-mini', result.usage);
+  trackUsage(modelId, result.usage);
 
   const parsed = parseJsonResponse<EmotionClassification>(result.content);
 
@@ -268,8 +285,9 @@ Classify the emotional tone.`;
   return parsed;
 }
 
-async function extractThemes(
+async function extractThemesWithModel(
   apiKey: string,
+  modelId: string,
   interviews: GeneratedInterview[],
 ): Promise<{
   themes: Array<{
@@ -309,12 +327,12 @@ Return a JSON object with:
 
 Identify 4-8 themes based on observed patterns.`;
 
-  const result = await callOpenRouterWithUsage(apiKey, 'openai/gpt-4.1-mini', system, user, {
+  const result = await callOpenRouterWithUsage(apiKey, modelId, system, user, {
     temperature: 0.3,
     maxTokens: 4000,
   });
 
-  trackUsage('openai/gpt-4.1-mini', result.usage);
+  trackUsage(modelId, result.usage);
 
   return parseJsonResponse(result.content);
 }
@@ -387,23 +405,71 @@ export async function runStage2(
 
   await updateProgress(supabase, runId, 70, 'Sentiment complete. Classifying emotions...');
 
-  // ── Part B2: Emotional tone (LLM calls) ───────────────────────────────
+  // ── Part B2: Emotional tone — 3-model STAMP classification ───────────
+
+  await updateProgress(supabase, runId, 70, 'Classifying emotions (3-model STAMP)...');
+
+  // Map emotion labels to numeric indices for Krippendorff's alpha
+  const emotionToIndex: Record<string, number> = {};
+  for (let i = 0; i < EMOTION_TAXONOMY.length; i++) {
+    emotionToIndex[EMOTION_TAXONOMY[i]] = i + 1;
+  }
 
   let emotionsCompleted = 0;
+  const totalEmotionCalls = allInterviews.length * MODEL_IDS.length;
+
+  // Store all classifications: interview → model → classification
+  const allEmotionResults: Map<string, Map<string, EmotionClassification>> = new Map();
+
+  const emotionTasks = allInterviews.flatMap((iv) =>
+    MODEL_IDS.map((modelId) => async () => {
+      const emotion = await classifyEmotion(
+        apiKey,
+        modelId,
+        iv.persona.persona_id,
+        iv.persona.name,
+        iv.responses.IQ6 || '',
+        iv.responses.IQ7 || '',
+      );
+
+      if (!allEmotionResults.has(iv.interviewId)) {
+        allEmotionResults.set(iv.interviewId, new Map());
+      }
+      allEmotionResults.get(iv.interviewId)!.set(modelId, emotion);
+
+      emotionsCompleted++;
+      const pct = 70 + Math.round((emotionsCompleted / totalEmotionCalls) * 18);
+      await updateProgress(
+        supabase,
+        runId,
+        pct,
+        `Emotion ${emotionsCompleted}/${totalEmotionCalls} (${MODEL_LABELS[modelId]} — ${emotion.primary_emotion})`,
+      );
+
+      return emotion;
+    })
+  );
+
+  await withConcurrency(emotionTasks, MAX_CONCURRENT_API_CALLS);
+
+  // Persist the consensus (majority vote) emotion per interview
   const emotionMap = new Map<string, EmotionClassification>();
+  for (const iv of allInterviews) {
+    const modelResults = allEmotionResults.get(iv.interviewId);
+    if (!modelResults) continue;
 
-  const emotionTasks = allInterviews.map((iv) => async () => {
-    const emotion = await classifyEmotion(
-      apiKey,
-      iv.persona.persona_id,
-      iv.persona.name,
-      iv.responses.IQ6 || '',
-      iv.responses.IQ7 || '',
-    );
+    // Majority vote on primary_emotion
+    const emotionCounts: Record<string, number> = {};
+    const allClassifications = Array.from(modelResults.values());
+    for (const cls of allClassifications) {
+      emotionCounts[cls.primary_emotion] = (emotionCounts[cls.primary_emotion] ?? 0) + 1;
+    }
+    const consensusEmotion = Object.entries(emotionCounts)
+      .sort((a, b) => b[1] - a[1])[0][0];
+    const consensusResult = allClassifications.find(c => c.primary_emotion === consensusEmotion) || allClassifications[0];
 
-    emotionMap.set(iv.interviewId, emotion);
+    emotionMap.set(iv.interviewId, consensusResult);
 
-    // Persist analysis row (sentiment + emotion combined)
     const sentiment = sentimentResults.find((s) => s.interviewId === iv.interviewId);
     await supabase.from('interview_analysis').insert({
       run_id: runId,
@@ -413,34 +479,91 @@ export async function runStage2(
         overall: sentiment?.overall,
         label: sentiment?.label,
       },
-      primary_emotion: emotion.primary_emotion,
-      secondary_emotion: emotion.secondary_emotion,
-      emotion_intensity: emotion.intensity,
-      emotion_reasoning: emotion.reasoning,
+      primary_emotion: consensusResult.primary_emotion,
+      secondary_emotion: consensusResult.secondary_emotion,
+      emotion_intensity: consensusResult.intensity,
+      emotion_reasoning: consensusResult.reasoning,
     });
+  }
 
-    emotionsCompleted++;
-    const pct = 70 + Math.round((emotionsCompleted / allInterviews.length) * 20);
-    await updateProgress(
-      supabase,
-      runId,
-      pct,
-      `Emotion ${emotionsCompleted}/${allInterviews.length} (${emotion.primary_emotion})`,
-    );
+  // ── STAMP: Compute Krippendorff's alpha on emotion classifications ───
 
-    return emotion;
+  await updateProgress(supabase, runId, 89, 'Computing emotion classification reliability (STAMP)...');
+
+  // Build ratings matrices for primary_emotion and intensity
+  const interviewIds = allInterviews.map(iv => iv.interviewId);
+  const modelList = [...MODEL_IDS].sort();
+
+  // Primary emotion alpha (nominal → treated as ordinal via index)
+  const emotionRatings: (number | null)[][] = modelList.map(modelId =>
+    interviewIds.map(ivId => {
+      const cls = allEmotionResults.get(ivId)?.get(modelId);
+      return cls ? (emotionToIndex[cls.primary_emotion] ?? null) : null;
+    })
+  );
+  const { alpha: emotionAlpha } = krippendorffAlpha(emotionRatings);
+
+  // Intensity alpha (ordinal 1-5)
+  const intensityRatings: (number | null)[][] = modelList.map(modelId =>
+    interviewIds.map(ivId => {
+      const cls = allEmotionResults.get(ivId)?.get(modelId);
+      return cls?.intensity ?? null;
+    })
+  );
+  const { alpha: intensityAlpha } = krippendorffAlpha(intensityRatings);
+
+  // Per-interview agreement detail
+  const perInterviewAgreement: Record<string, unknown>[] = interviewIds.map(ivId => {
+    const modelResults = allEmotionResults.get(ivId);
+    const emotions = modelList.map(m => modelResults?.get(m)?.primary_emotion ?? 'unknown');
+    const allSame = emotions.every(e => e === emotions[0]);
+    return {
+      interview_id: ivId,
+      classifications: Object.fromEntries(modelList.map((m, i) => [MODEL_LABELS[m], emotions[i]])),
+      unanimous: allSame,
+    };
   });
 
-  await withConcurrency(emotionTasks, MAX_CONCURRENT_API_CALLS);
+  const unanimousCount = perInterviewAgreement.filter(p => p.unanimous).length;
 
-  // ── Part B3: Theme extraction ─────────────────────────────────────────
+  // Store STAMP emotion results in analysis_results
+  await supabase.from('analysis_results').insert({
+    run_id: runId,
+    analysis_type: 'stamp_emotion_classification',
+    results: {
+      methodology: 'STAMP: 3-model independent emotion classification with codebook prompt',
+      models: modelList.map(m => MODEL_LABELS[m]),
+      emotion_alpha: Math.round(emotionAlpha * 10000) / 10000,
+      emotion_interpretation: emotionAlpha >= 0.8 ? 'excellent' : emotionAlpha >= 0.667 ? 'acceptable' : emotionAlpha >= 0.4 ? 'moderate' : 'poor',
+      emotion_passes_stamp: emotionAlpha >= 0.667,
+      intensity_alpha: Math.round(intensityAlpha * 10000) / 10000,
+      intensity_interpretation: intensityAlpha >= 0.8 ? 'excellent' : intensityAlpha >= 0.667 ? 'acceptable' : intensityAlpha >= 0.4 ? 'moderate' : 'poor',
+      unanimous_classifications: unanimousCount,
+      total_classifications: interviewIds.length,
+      unanimous_rate: Math.round((unanimousCount / interviewIds.length) * 1000) / 10,
+      per_interview: perInterviewAgreement,
+    },
+  });
 
-  await updateProgress(supabase, runId, 92, 'Extracting themes from transcripts...');
+  // ── Part B3: Theme extraction — 3-model STAMP ────────────────────────
 
-  const themeResult = await extractThemes(apiKey, allInterviews);
-  const themes = themeResult.themes || [];
+  await updateProgress(supabase, runId, 92, 'Extracting themes (3-model STAMP)...');
 
-  for (const theme of themes) {
+  // Run theme extraction on all 3 models independently
+  const themesByModel: Map<string, string[]> = new Map();
+  const allThemeResults = await withConcurrency(
+    MODEL_IDS.map((modelId) => async () => {
+      const result = await extractThemesWithModel(apiKey, modelId, allInterviews);
+      const themeNames = (result.themes || []).map((t: { theme_name: string }) => t.theme_name.toLowerCase().trim());
+      themesByModel.set(modelId, themeNames);
+      return { modelId, themes: result.themes || [] };
+    }),
+    MODEL_IDS.length,
+  );
+
+  // Use first model's themes as the canonical set (persist these)
+  const primaryThemes = allThemeResults[0]?.themes || [];
+  for (const theme of primaryThemes) {
     await supabase.from('interview_themes').insert({
       run_id: runId,
       source: 'llm',
@@ -451,6 +574,48 @@ export async function runStage2(
       supporting_quotes: theme.supporting_quotes || null,
     });
   }
+  const themes = primaryThemes;
+
+  // Compute theme overlap: how many models identified similar themes
+  const allModelThemes = allThemeResults.map(r => ({
+    model: MODEL_LABELS[r.modelId],
+    themes: (r.themes || []).map((t: { theme_name: string }) => t.theme_name),
+  }));
+
+  // Simple overlap metric: for each pair of models, count shared theme keywords
+  const themeOverlap: Record<string, unknown>[] = [];
+  for (let i = 0; i < allModelThemes.length; i++) {
+    for (let j = i + 1; j < allModelThemes.length; j++) {
+      const a = new Set(allModelThemes[i].themes.map((t: string) => t.toLowerCase()));
+      const b = new Set(allModelThemes[j].themes.map((t: string) => t.toLowerCase()));
+      const intersection = [...a].filter(x => b.has(x)).length;
+      const union = new Set([...a, ...b]).size;
+      const jaccard = union > 0 ? Math.round((intersection / union) * 1000) / 1000 : 0;
+      themeOverlap.push({
+        pair: `${allModelThemes[i].model} vs ${allModelThemes[j].model}`,
+        shared: intersection,
+        total_unique: union,
+        jaccard_similarity: jaccard,
+      });
+    }
+  }
+
+  const avgJaccard = themeOverlap.length > 0
+    ? Math.round((themeOverlap.reduce((s, o) => s + (o.jaccard_similarity as number), 0) / themeOverlap.length) * 1000) / 1000
+    : 0;
+
+  await supabase.from('analysis_results').insert({
+    run_id: runId,
+    analysis_type: 'stamp_theme_extraction',
+    results: {
+      methodology: 'STAMP: 3-model independent theme extraction with Jaccard overlap',
+      models: allModelThemes.map(m => m.model),
+      themes_per_model: allModelThemes.map(m => ({ model: m.model, count: m.themes.length, themes: m.themes })),
+      pairwise_overlap: themeOverlap,
+      average_jaccard: avgJaccard,
+      interpretation: avgJaccard >= 0.5 ? 'strong_overlap' : avgJaccard >= 0.3 ? 'moderate_overlap' : 'weak_overlap',
+    },
+  });
 
   await updateProgress(supabase, runId, 100, 'Interviews and analysis complete', 'completed');
 

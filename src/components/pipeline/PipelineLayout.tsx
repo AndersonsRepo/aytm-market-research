@@ -56,7 +56,8 @@ export function PipelineLayout() {
     Object.fromEntries(STAGES.map(s => [s.id, defaultStageState()]))
   );
   const [expandedStage, setExpandedStage] = useState<number | null>(null);
-  const [previousRuns, setPreviousRuns] = useState<PipelineRun[]>([]);
+  const [liveRuns, setLiveRuns] = useState<PipelineRun[]>([]);
+  const [demoRuns, setDemoRuns] = useState<PipelineRun[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [runStartedAt, setRunStartedAt] = useState<string | null>(null);
   const [runCompletedAt, setRunCompletedAt] = useState<string | null>(null);
@@ -68,7 +69,7 @@ export function PipelineLayout() {
   useEffect(() => {
     fetch("/api/pipeline/runs")
       .then(res => res.json())
-      .then(data => setPreviousRuns(data.runs || []))
+      .then(data => { setLiveRuns(data.liveRuns || []); setDemoRuns(data.demoRuns || []); })
       .catch(() => {});
   }, []);
 
@@ -281,7 +282,7 @@ export function PipelineLayout() {
     // Refresh history
     fetch("/api/pipeline/runs")
       .then(res => res.json())
-      .then(data => setPreviousRuns(data.runs || []))
+      .then(data => { setLiveRuns(data.liveRuns || []); setDemoRuns(data.demoRuns || []); })
       .catch(() => {});
   }, []);
 
@@ -309,6 +310,51 @@ export function PipelineLayout() {
     const remSecs = secs % 60;
     return `${mins}m ${remSecs}s`;
   };
+
+
+  const RunRow = ({ run, onLoad }: { run: PipelineRun; onLoad: (run: PipelineRun) => void }) => (
+    <button
+      onClick={() => onLoad(run)}
+      className="w-full flex items-center justify-between px-4 py-3 bg-gray-900/80 border border-gray-800/60 hover:border-gray-600 rounded-xl transition-all text-left group hover:bg-gray-900"
+    >
+      <div className="flex items-center gap-3">
+        <div className={`w-2 h-2 rounded-full ${
+          run.status === "completed" ? "bg-emerald-500" :
+          run.status === "error" ? "bg-red-500" :
+          "bg-yellow-500"
+        }`} />
+        <div>
+          <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
+            {run.mode === "demo" ? "Demo" : "Live"} run
+          </span>
+          <span className="text-xs text-gray-700 ml-2 font-mono">
+            {run.id.slice(0, 8)}
+          </span>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-gray-600">
+          {run.current_stage}/6
+        </span>
+        {run.total_cost != null && run.total_cost > 0 && (
+          <span className="text-xs text-emerald-500/80 font-mono">
+            ${Number(run.total_cost).toFixed(2)}
+          </span>
+        )}
+        {run.started_at && run.completed_at && (
+          <span className="text-xs text-gray-600 font-mono">
+            {formatDuration(run.started_at, run.completed_at)}
+          </span>
+        )}
+        <span className="text-xs text-gray-700">
+          {formatDate(run.started_at)}
+        </span>
+        <svg className="w-4 h-4 text-gray-700 group-hover:text-gray-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    </button>
+  );
 
   return (
     <div className="min-h-screen">
@@ -409,8 +455,8 @@ export function PipelineLayout() {
               isAutoRunning={isAutoRunning}
             />
 
-            {/* Previous Runs */}
-            {previousRuns.length > 0 && (
+            {/* Previous Runs — separated by mode */}
+            {(liveRuns.length > 0 || demoRuns.length > 0) && (
               <div className="mt-8 flex flex-col items-center">
                 <button
                   onClick={() => setShowHistory(!showHistory)}
@@ -419,55 +465,42 @@ export function PipelineLayout() {
                   <svg className={`w-3 h-3 transition-transform duration-200 ${showHistory ? "rotate-90" : ""}`} fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                   </svg>
-                  {previousRuns.length} previous run{previousRuns.length !== 1 ? "s" : ""}
+                  {liveRuns.length + demoRuns.length} previous run{liveRuns.length + demoRuns.length !== 1 ? "s" : ""}
                 </button>
 
                 {showHistory && (
-                  <div className="mt-3 w-full max-w-lg space-y-2 animate-fade-in-down">
-                    {previousRuns.map(run => (
-                      <button
-                        key={run.id}
-                        onClick={() => handleLoadRun(run)}
-                        className="w-full flex items-center justify-between px-4 py-3 bg-gray-900/80 border border-gray-800/60 hover:border-gray-600 rounded-xl transition-all text-left group hover:bg-gray-900"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full ${
-                            run.status === "completed" ? "bg-emerald-500" :
-                            run.status === "error" ? "bg-red-500" :
-                            "bg-yellow-500"
-                          }`} />
-                          <div>
-                            <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
-                              {run.mode === "demo" ? "Demo" : "Live"} run
-                            </span>
-                            <span className="text-xs text-gray-700 ml-2 font-mono">
-                              {run.id.slice(0, 8)}
-                            </span>
-                          </div>
+                  <div className="mt-3 w-full max-w-lg space-y-4 animate-fade-in-down">
+                    {/* Live Runs */}
+                    {liveRuns.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          <span className="text-xs font-medium text-blue-400 uppercase tracking-wider">Live Runs</span>
+                          <span className="text-xs text-gray-700">({liveRuns.length})</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-gray-600">
-                            {run.current_stage}/6
-                          </span>
-                          {run.total_cost != null && run.total_cost > 0 && (
-                            <span className="text-xs text-emerald-500/80 font-mono">
-                              ${Number(run.total_cost).toFixed(2)}
-                            </span>
-                          )}
-                          {run.started_at && run.completed_at && (
-                            <span className="text-xs text-gray-600 font-mono">
-                              {formatDuration(run.started_at, run.completed_at)}
-                            </span>
-                          )}
-                          <span className="text-xs text-gray-700">
-                            {formatDate(run.started_at)}
-                          </span>
-                          <svg className="w-4 h-4 text-gray-700 group-hover:text-gray-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                          </svg>
+                        <div className="space-y-2">
+                          {liveRuns.map(run => (
+                            <RunRow key={run.id} run={run} onLoad={handleLoadRun} />
+                          ))}
                         </div>
-                      </button>
-                    ))}
+                      </div>
+                    )}
+
+                    {/* Demo Runs */}
+                    {demoRuns.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-gray-500" />
+                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Demo Runs</span>
+                          <span className="text-xs text-gray-700">({demoRuns.length})</span>
+                        </div>
+                        <div className="space-y-2">
+                          {demoRuns.map(run => (
+                            <RunRow key={run.id} run={run} onLoad={handleLoadRun} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

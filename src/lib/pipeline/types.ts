@@ -209,7 +209,10 @@ export type AnalysisType =
   | 'kruskal_wallis'
   | 'inter_llm_reliability'
   | 'benchmark_comparison'
-  | 'disagreement_analysis';
+  | 'disagreement_analysis'
+  | 'stamp_emotion_classification'
+  | 'stamp_theme_extraction'
+  | 'stamp_interpretation_agreement';
 
 export interface AnalysisResult {
   id?: string;

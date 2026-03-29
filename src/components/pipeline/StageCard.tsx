@@ -811,6 +811,174 @@ function AnalysisResults({ runId }: { runId: string }) {
               );
             }
 
+
+            {/* ── stamp_emotion_classification ── */}
+            if (type === "stamp_emotion_classification") {
+              const d = data as Record<string, any>;
+              const emotionAlpha = d.emotion_alpha ?? 0;
+              const intensityAlpha = d.intensity_alpha ?? 0;
+              const unanimousRate = d.unanimous_rate ?? 0;
+              const passesStamp = d.emotion_passes_stamp;
+              const perInterview = (d.per_interview || []) as Array<{ interview_id: string; classifications: Record<string, string>; unanimous: boolean }>;
+
+              return (
+                <div key={i} className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 mb-3 space-y-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-medium text-violet-400 uppercase tracking-wider">STAMP Emotion Classification</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${passesStamp ? 'bg-emerald-900/50 text-emerald-400' : 'bg-yellow-900/50 text-yellow-400'}`}>
+                      {passesStamp ? 'PASSES ≥0.667' : 'BELOW 0.667'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">{d.methodology}</p>
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-white">{emotionAlpha.toFixed(3)}</div>
+                      <div className="text-[10px] text-gray-500">Emotion α</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-white">{intensityAlpha.toFixed(3)}</div>
+                      <div className="text-[10px] text-gray-500">Intensity α</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-white">{unanimousRate}%</div>
+                      <div className="text-[10px] text-gray-500">Unanimous</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-white">{d.total_classifications}</div>
+                      <div className="text-[10px] text-gray-500">Items</div>
+                    </div>
+                  </div>
+                  {perInterview.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-gray-400 border-b border-gray-700">
+                            <th className="text-left py-2">Interview</th>
+                            {(d.models || []).map((m: string) => <th key={m} className="text-center py-2">{m}</th>)}
+                            <th className="text-center py-2">Agree?</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {perInterview.slice(0, 15).map((row) => (
+                            <tr key={row.interview_id} className="border-b border-gray-800/50">
+                              <td className="py-1.5 text-gray-400 font-mono">{row.interview_id.slice(0, 12)}</td>
+                              {(d.models || []).map((m: string) => (
+                                <td key={m} className="text-center py-1.5 text-gray-300">{row.classifications[m] || '—'}</td>
+                              ))}
+                              <td className="text-center py-1.5">
+                                {row.unanimous ? <span className="text-emerald-400">✓</span> : <span className="text-yellow-400">✗</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            {/* ── stamp_theme_extraction ── */}
+            if (type === "stamp_theme_extraction") {
+              const d = data as Record<string, any>;
+              const avgJaccard = d.average_jaccard ?? 0;
+              const themesPerModel = (d.themes_per_model || []) as Array<{ model: string; count: number; themes: string[] }>;
+              const pairwise = (d.pairwise_overlap || []) as Array<{ pair: string; shared: number; total_unique: number; jaccard_similarity: number }>;
+
+              return (
+                <div key={i} className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 mb-3 space-y-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-medium text-violet-400 uppercase tracking-wider">STAMP Theme Extraction</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${avgJaccard >= 0.5 ? 'bg-emerald-900/50 text-emerald-400' : avgJaccard >= 0.3 ? 'bg-yellow-900/50 text-yellow-400' : 'bg-red-900/50 text-red-400'}`}>
+                      Jaccard: {avgJaccard.toFixed(3)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">{d.methodology}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {themesPerModel.map((m) => (
+                      <div key={m.model} className="bg-gray-900/60 rounded-lg p-3">
+                        <p className="text-xs font-medium text-gray-300 mb-2">{m.model} ({m.count} themes)</p>
+                        <div className="flex flex-wrap gap-1">
+                          {m.themes.map((t: string, idx: number) => (
+                            <span key={idx} className="text-[10px] bg-gray-800 text-gray-400 px-2 py-0.5 rounded">{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {pairwise.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500 font-medium">Pairwise Overlap</p>
+                      {pairwise.map((p, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs bg-gray-900/40 px-3 py-1.5 rounded">
+                          <span className="text-gray-400">{p.pair}</span>
+                          <span className="text-gray-300">{p.shared}/{p.total_unique} shared (J={p.jaccard_similarity.toFixed(3)})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            {/* ── stamp_interpretation_agreement ── */}
+            if (type === "stamp_interpretation_agreement") {
+              const d = data as Record<string, any>;
+              const agreementRate = d.agreement_rate ?? 0;
+              const fields = (d.classification_fields || []) as Array<{ field: string; values: Record<string, string>; unanimous: boolean; unique_answers: number }>;
+              const passesStamp = d.passes_stamp;
+
+              return (
+                <div key={i} className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 mb-3 space-y-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-medium text-blue-400 uppercase tracking-wider">STAMP Interpretation Agreement</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${passesStamp ? 'bg-emerald-900/50 text-emerald-400' : 'bg-yellow-900/50 text-yellow-400'}`}>
+                      {agreementRate}% agreement{passesStamp ? ' — PASSES' : ''}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">{d.methodology}</p>
+                  <div className="grid grid-cols-3 gap-3 mb-2">
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-white">{d.unanimous_fields}/{d.total_fields}</div>
+                      <div className="text-[10px] text-gray-500">Unanimous</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-white">{agreementRate}%</div>
+                      <div className="text-[10px] text-gray-500">Agreement Rate</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-white">{d.interpretation_alpha?.toFixed(3) ?? '—'}</div>
+                      <div className="text-[10px] text-gray-500">Interp. α</div>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-gray-400 border-b border-gray-700">
+                          <th className="text-left py-2">Classification</th>
+                          {(d.models || []).map((m: string) => <th key={m} className="text-center py-2">{m}</th>)}
+                          <th className="text-center py-2">Agree?</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {fields.map((f) => (
+                          <tr key={f.field} className="border-b border-gray-800/50">
+                            <td className="py-1.5 text-gray-400">{f.field.replace(/_/g, ' ')}</td>
+                            {(d.models || []).map((m: string) => (
+                              <td key={m} className="text-center py-1.5 text-gray-300">{f.values[m] || '—'}</td>
+                            ))}
+                            <td className="text-center py-1.5">
+                              {f.unanimous ? <span className="text-emerald-400">✓</span> : <span className="text-yellow-400">✗</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            }
+
             {/* ── Generic fallback ── */}
             return (
               <div key={i} className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 mb-3">
