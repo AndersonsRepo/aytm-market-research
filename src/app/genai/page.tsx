@@ -160,10 +160,10 @@ export default function GenAIDocumentationPage() {
           <p className="text-sm text-gray-500">
             All three LLMs are accessed through OpenRouter, enabling{" "}
             <strong className="text-gray-300">STAMP</strong> (Structured
-            Taxonomy AI Measurement Protocol) — a multi-model reliability
-            methodology where heterogeneous models independently generate
-            outputs and inter-model agreement is measured via
-            Krippendorff&apos;s alpha.
+            Taxonomy AI Measurement Protocol) — applied at two levels:
+            generation-level (model mean correlation for survey responses)
+            and classification-level (Krippendorff&apos;s α for emotion
+            classification, theme extraction, and market interpretation).
           </p>
         </Section>
 
@@ -183,13 +183,13 @@ export default function GenAIDocumentationPage() {
           <StageCard
             stage={2}
             title="Depth Interviews"
-            badge="30 interviews"
+            badge="30 interviews + STAMP"
             badgeColor="blue"
             description="30 simulated depth interviews (10 personas × 3 models) with 8 core questions plus adaptive follow-ups."
             details={[
-              "AI-generated emotion classification per response",
-              "Cross-interview theme extraction and clustering",
-              "Adaptive follow-up questions generated based on prior answers",
+              "STAMP emotion classification: all 3 models independently classify each interview using codebook prompts with boundary cases, measured via Krippendorff's α",
+              "STAMP theme extraction: all 3 models independently extract themes, measured via Jaccard similarity",
+              "Majority-vote consensus determines final emotion per interview",
             ]}
           />
           <StageCard
@@ -219,14 +219,13 @@ export default function GenAIDocumentationPage() {
           <StageCard
             stage={5}
             title="Statistical Analysis"
-            badge="No AI"
-            badgeColor="gray"
-            description="Pure computation — all statistical tests are deterministic TypeScript code with no LLM involvement."
+            badge="Computation + STAMP"
+            badgeColor="blue"
+            description="Deterministic statistical tests plus STAMP interpretation agreement — 3 models independently classify the aggregate survey data."
             details={[
-              "Mann-Whitney U tests for group comparisons",
-              "Kruskal-Wallis H tests for multi-group analysis",
-              "Bootstrap confidence intervals (10,000 resamples)",
-              "Krippendorff's alpha for inter-LLM reliability",
+              "Mann-Whitney U, Kruskal-Wallis H, bootstrap CIs (deterministic)",
+              "Krippendorff's α for response-level inter-LLM reliability",
+              "STAMP interpretation agreement: 3 models classify the same dataset (dominant barrier, primary use case, purchase intent, best segment, market readiness) — true classification task where α applies",
             ]}
           />
           <StageCard

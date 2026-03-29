@@ -18,7 +18,7 @@
 | **VADER Sentiment** | NLTK-equivalent | Sentiment analysis (local, no API) |
 | **Vercel** | Vercel | Production deployment |
 
-All three LLMs are accessed through OpenRouter, enabling STAMP (Structured Taxonomy AI Measurement Protocol) — a multi-model reliability methodology where heterogeneous models independently generate outputs at each stage, and inter-model agreement is measured via Krippendorff's alpha.
+All three LLMs are accessed through OpenRouter, enabling STAMP (Structured Taxonomy AI Measurement Protocol) — applied at two levels: generation-level (Pearson correlation of model mean vectors for survey responses) and classification-level (Krippendorff's α for emotion classification, theme extraction, and market interpretation agreement).
 
 ---
 
@@ -26,13 +26,13 @@ All three LLMs are accessed through OpenRouter, enabling STAMP (Structured Taxon
 
 **Stage 1 — Discovery:** Three models each answer 10 strategic market research questions about the Neo Smart Living product category. An AI-generated synthesis produces a consolidated research brief with themes, opportunities, and risks.
 
-**Stage 2 — Depth Interviews:** 30 simulated depth interviews (10 personas × 3 models) with 8 core questions plus adaptive follow-ups. AI generates emotion classifications and extracts themes across all interviews.
+**Stage 2 — Depth Interviews:** 30 simulated depth interviews (10 personas × 3 models) with 8 core questions plus adaptive follow-ups. STAMP-compliant emotion classification: all 3 models independently classify each interview using codebook prompts with boundary cases, measured via Krippendorff's α. STAMP theme extraction: all 3 models independently extract themes, measured via Jaccard similarity.
 
 **Stage 3 — Survey Design:** Three models independently design survey instruments based on Stage 2 themes. AI performs cross-model coverage analysis to identify consensus questions and gaps.
 
 **Stage 4 — Survey Responses:** 90 synthetic respondents (5 demographic segments × 6 respondents × 3 models) complete the designed survey. Each model generates structured Likert-scale and categorical responses grounded in persona profiles.
 
-**Stage 5 — Statistical Analysis:** Pure computation — no AI. Mann-Whitney U tests, Kruskal-Wallis H tests, bootstrap confidence intervals, and Krippendorff's alpha are calculated deterministically in TypeScript.
+**Stage 5 — Statistical Analysis:** Deterministic statistics (Mann-Whitney U, Kruskal-Wallis H, bootstrap CIs, Krippendorff's α) plus STAMP interpretation agreement — all 3 models independently classify the aggregate survey data into structured categories (dominant barrier, primary use case, purchase intent level, best segment, market readiness). This classification task is where STAMP's α threshold directly applies.
 
 **Stage 6 — Quality Validation:** Pure computation — no AI. Automated bias detection, inter-model reliability scoring, and benchmark comparison against real aytm N=600 survey data.
 
@@ -56,7 +56,7 @@ All three LLMs are accessed through OpenRouter, enabling STAMP (Structured Taxon
 
 **Sycophancy Reduction Techniques:** Third-person prediction framing, calibration anchors, explicit rejection permission, and anti-central-tendency instructions — all designed by humans based on published research (arxiv:2512.22725, TACL 2024).
 
-**Statistical Implementations:** Mann-Whitney U, Kruskal-Wallis H, bootstrap confidence intervals, and Krippendorff's alpha — hand-coded in TypeScript without external statistical libraries.
+**Statistical Implementations:** Mann-Whitney U, Kruskal-Wallis H, bootstrap confidence intervals, Krippendorff's alpha, and Jaccard similarity — hand-coded in TypeScript without external statistical libraries.
 
 **Acquiescence Bias Correction:** Deterministic post-hoc correction that deflates responses when >80% of a respondent's Likert answers are 4-5. Pure code, not AI.
 

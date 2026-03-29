@@ -65,13 +65,21 @@ export function PipelineLayout() {
   const stagesRef = useRef(stages);
   stagesRef.current = stages;
 
-  // Fetch previous runs on mount
+  // Fetch previous runs on mount + auto-reconnect to running pipeline
   useEffect(() => {
     fetch("/api/pipeline/runs")
       .then(res => res.json())
-      .then(data => { setLiveRuns(data.liveRuns || []); setDemoRuns(data.demoRuns || []); })
+      .then(data => {
+        setLiveRuns(data.liveRuns || []);
+        setDemoRuns(data.demoRuns || []);
+        // Auto-reconnect: if there's a running live run, load it
+        const runningRun = (data.liveRuns || []).find((r: PipelineRun) => r.status === "running");
+        if (runningRun) {
+          handleLoadRun(runningRun);
+        }
+      })
       .catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateStage = useCallback((stageId: number, update: Partial<StageState>) => {
     setStages(prev => ({
@@ -176,7 +184,8 @@ export function PipelineLayout() {
       // Read latest state via ref (not stale closure)
       const current = stagesRef.current[stage.id];
       if (current?.status === "completed") continue;
-      if (current?.status !== "ready" && stage.id !== 1) continue;
+      // Skip if not actionable (must be ready, error, or stage 1)
+      if (current?.status !== "ready" && current?.status !== "error" && stage.id !== 1) continue;
 
       const success = await handleRunStage(stage.id);
       if (!success) break;
@@ -233,7 +242,7 @@ export function PipelineLayout() {
         for (const sp of data.stages) {
           const statusMap: Record<string, StageStatus> = {
             pending: "locked",
-            running: "ready",
+            running: "running",  // Was "ready" — now correctly shows as running
             completed: "completed",
             error: "error",
           };
@@ -247,10 +256,24 @@ export function PipelineLayout() {
             costEstimate: sp.cost_estimate ? parseFloat(String(sp.cost_estimate)) : 0,
           };
         }
-        // If a stage errored or is pending, make the next non-completed stage "ready"
+        // Make the first actionable stage "ready"
+        let foundReady = false;
         for (let i = 1; i <= 6; i++) {
           if (!newStages[i]) {
             newStages[i] = defaultStageState();
+          }
+          // First non-completed, non-running stage after completed ones becomes "ready"
+          if (!foundReady && newStages[i].status !== "completed" && newStages[i].status !== "running") {
+            // Only mark ready if all previous stages are completed or running
+            const allPriorDone = Array.from({ length: i - 1 }, (_, j) => j + 1)
+              .every(j => newStages[j]?.status === "completed" || newStages[j]?.status === "running");
+            if (allPriorDone && newStages[i].status !== "error") {
+              newStages[i].status = "ready";
+              foundReady = true;
+            } else if (newStages[i].status === "error") {
+              // Errored stages stay as error but are re-runnable via the retry button
+              foundReady = true; // Don't ready anything after an error
+            }
           }
         }
         setStages(newStages);
@@ -287,6 +310,7 @@ export function PipelineLayout() {
   }, []);
 
   const hasReadyStage = Object.values(stages).some(s => s.status === "ready");
+  const hasActionableStage = Object.values(stages).some(s => s.status === "ready" || s.status === "error");
 
   // Computed values
   const totalCost = Object.values(stages).reduce((sum, s) => sum + s.costEstimate, 0);
@@ -524,7 +548,7 @@ export function PipelineLayout() {
               mode={mode}
               onStart={handleStart}
               onReset={handleReset}
-              onAutoRun={undefined}
+              onAutoRun={!allCompleted && hasActionableStage ? handleAutoRun : undefined}
               isAutoRunning={isAutoRunning}
             />
           </div>

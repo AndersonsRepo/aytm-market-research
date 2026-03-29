@@ -1304,6 +1304,15 @@ export function StageCard({ stage, state, isExpanded, runId, onRun, onToggle }: 
             </button>
           )}
 
+          {status === "error" && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onRun(); }}
+              className="px-5 py-2 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 rounded-lg text-sm font-medium transition-all shadow-lg shadow-red-900/25 hover:shadow-red-800/40 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              Retry Stage
+            </button>
+          )}
+
           {status === "completed" && STAGES_WITH_DETAIL_VIEW.has(stage.id) && runId && (
             <Link
               href={`/stage/${stage.id}?runId=${runId}`}

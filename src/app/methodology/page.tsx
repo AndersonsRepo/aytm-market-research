@@ -266,13 +266,39 @@ export default function MethodologyPage() {
 
         {/* STAMP */}
         <Section title="Measurement: STAMP Methodology">
-          <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-6">
+          <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-6 mb-4">
             <p className="text-sm text-gray-300 mb-4">
-              We use Dr. Lin&apos;s <strong className="text-white">STAMP (Structured Taxonomy AI Measurement Protocol)</strong> to
-              scientifically measure inter-LLM agreement. Three heterogeneous frontier models
-              (GPT-4.1-mini, Gemini-2.5-Flash, Claude-Sonnet-4.6) independently generate responses
-              for each persona. Agreement is measured via Krippendorff&apos;s alpha:
+              We apply Dr. Lin&apos;s <strong className="text-white">STAMP (Structured Taxonomy AI Measurement Protocol)</strong> at
+              two distinct levels, matching the methodology to the task type:
             </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="bg-blue-950/30 border border-blue-800/40 rounded-xl p-5">
+                <h3 className="text-sm font-semibold text-blue-400 mb-2">Generation Level (Stage 4)</h3>
+                <p className="text-xs text-gray-400 mb-2">
+                  Three models independently generate synthetic survey responses for the same persona.
+                  We deliberately maximize model independence — anti-sycophancy techniques force genuine
+                  reasoning, producing lower individual-level agreement but authentic population-level convergence.
+                </p>
+                <div className="text-xs text-gray-500">
+                  <strong className="text-gray-300">Metric:</strong> Mean correlation (r ≈ 0.64)
+                </div>
+              </div>
+              <div className="bg-violet-950/30 border border-violet-800/40 rounded-xl p-5">
+                <h3 className="text-sm font-semibold text-violet-400 mb-2">Classification Level (Stages 2 &amp; 5)</h3>
+                <p className="text-xs text-gray-400 mb-2">
+                  Three models independently <em>classify</em> the same data — emotion classification
+                  with STAMP codebook prompts (Stage 2), theme extraction with Jaccard overlap (Stage 2),
+                  and market interpretation agreement (Stage 5). These are true classification tasks
+                  where Krippendorff&apos;s alpha directly applies.
+                </p>
+                <div className="text-xs text-gray-500">
+                  <strong className="text-gray-300">Metric:</strong> Krippendorff&apos;s α + Jaccard + agreement rate
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-3">Krippendorff&apos;s α thresholds (classification tasks)</p>
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="bg-gray-800/50 rounded-lg p-4 text-center">
                 <div className="text-lg font-bold text-red-400">α &lt; 0.667</div>
@@ -287,11 +313,12 @@ export default function MethodologyPage() {
                 <div className="text-xs text-gray-400 mt-1">Excellent reliability</div>
               </div>
             </div>
+
             <p className="text-sm text-gray-400">
-              Low α values are not failures — they are diagnostic signals showing where synthetic
-              data is unreliable. This transparency is the core value proposition: instead of
-              claiming synthetic data is always accurate, we measure and report exactly where it
-              can and cannot be trusted.
+              This dual-level approach recognizes that STAMP was designed for classification, not generation.
+              At the generation level, low individual-level α is expected — it proves models reason independently.
+              At the classification level, high α proves models converge on the same market findings.
+              <strong className="text-gray-300"> Generation diverges. Interpretation converges.</strong>
             </p>
           </div>
         </Section>
