@@ -414,46 +414,107 @@ export default function InsightsPage() {
           </div>
         </Section>
 
+        {/* Stage 5: How the Analysis Works */}
+        <Section title="Stage 5: How the Analysis Works">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-8 h-8 rounded-full bg-violet-600/20 border border-violet-700/40 flex items-center justify-center text-violet-400 text-xs font-bold">
+                  H
+                </span>
+                <h3 className="text-sm font-semibold text-violet-400">
+                  Key Variables by Model
+                </h3>
+              </div>
+              <p className="text-sm text-gray-400">
+                Acts as a reliability check &mdash; comparing 3 independent LLMs
+                on key survey variables using Kruskal-Wallis H tests. When
+                models agree, the finding is robust. When they diverge, we flag
+                which variable and by how much.
+              </p>
+            </div>
+
+            <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-8 h-8 rounded-full bg-violet-600/20 border border-violet-700/40 flex items-center justify-center text-violet-400 text-xs font-bold">
+                  &#9638;
+                </span>
+                <h3 className="text-sm font-semibold text-violet-400">
+                  Segment Comparison
+                </h3>
+              </div>
+              <p className="text-sm text-gray-400">
+                The clearest view of where opportunities are. A heatmap of key
+                variables across 5 consumer segments reveals which groups are
+                most receptive and what barriers matter most to each.
+              </p>
+            </div>
+
+            <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-8 h-8 rounded-full bg-violet-600/20 border border-violet-700/40 flex items-center justify-center text-violet-400 text-xs font-bold">
+                  &#9641;
+                </span>
+                <h3 className="text-sm font-semibold text-violet-400">
+                  Model Summary Cards
+                </h3>
+              </div>
+              <p className="text-sm text-gray-400">
+                Per-model cards make patterns easy to compare at a glance
+                &mdash; showing each LLM&apos;s mean scores for purchase intent,
+                barriers, and concept appeal.
+              </p>
+            </div>
+
+            <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-8 h-8 rounded-full bg-violet-600/20 border border-violet-700/40 flex items-center justify-center text-violet-400 text-xs font-bold">
+                  &#10003;
+                </span>
+                <h3 className="text-sm font-semibold text-violet-400">
+                  Attention Check
+                </h3>
+              </div>
+              <p className="text-sm text-gray-400">
+                A trap question (Q30) screens for response quality. Responses
+                that fail are flagged, ensuring the synthetic data meets basic
+                quality standards.
+              </p>
+            </div>
+          </div>
+        </Section>
+
         {/* Methodology Credibility */}
         <Section title="Why This Research Is Credible">
           <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-6">
-            <p className="text-sm text-gray-300 mb-5">
-              This pipeline does not replace real market research &mdash; it{" "}
-              <strong className="text-white">complements</strong> it. Here is
-              why the findings are worth acting on.
-            </p>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-violet-950/20 border border-violet-900/30 rounded-lg p-4">
                 <h4 className="text-xs font-semibold text-violet-400 uppercase tracking-wider mb-2">
                   STAMP Triangulation
                 </h4>
                 <p className="text-xs text-gray-400">
-                  Three independent LLMs (GPT-4.1-mini, Gemini-2.5-Flash,
-                  Claude-Sonnet-4.6) generate and analyze data separately. When
-                  they agree, the finding is robust. When they disagree, we flag
-                  it.
+                  Three independent LLMs generate and analyze data separately.
+                  When they agree, the finding is robust. When they disagree, we
+                  flag it.
                 </p>
               </div>
               <div className="bg-violet-950/20 border border-violet-900/30 rounded-lg p-4">
                 <h4 className="text-xs font-semibold text-violet-400 uppercase tracking-wider mb-2">
-                  6-Stage Pipeline
+                  Krippendorff&apos;s Alpha
                 </h4>
                 <p className="text-xs text-gray-400">
-                  Discovery &rarr; Depth Interviews &rarr; Survey Design &rarr;
-                  Survey Responses &rarr; Statistical Analysis &rarr; Quality
-                  Validation. Each stage feeds the next with full traceability.
+                  Inter-rater reliability metric for classification tasks
+                  &mdash; measures how consistently the 3 LLMs categorize the
+                  same data.
                 </p>
               </div>
               <div className="bg-violet-950/20 border border-violet-900/30 rounded-lg p-4">
                 <h4 className="text-xs font-semibold text-violet-400 uppercase tracking-wider mb-2">
-                  Bias-Aware Design
+                  Bootstrap CIs
                 </h4>
                 <p className="text-xs text-gray-400">
-                  Five sycophancy reduction techniques (third-person framing,
-                  rejection permission, skeptical personas, response guidance,
-                  acquiescence correction) keep synthetic data grounded in
-                  reality.
+                  Confidence bounds on every estimate &mdash; quantifying
+                  uncertainty rather than hiding it.
                 </p>
               </div>
             </div>

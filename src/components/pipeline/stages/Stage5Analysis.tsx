@@ -704,7 +704,7 @@ export function Stage5Analysis({ runId }: { runId: string }) {
 
 
       {/* ── STAMP Interpretation Agreement ── */}
-      {byType["stamp_interpretation_agreement"]?.map((item: any, i: number) => {
+      {byType["stamp_interpretation_agreement", "survey_coverage_validation"]?.map((item: any, i: number) => {
         const d = item.results || {};
 
         // Handle failure case
@@ -787,9 +787,37 @@ export function Stage5Analysis({ runId }: { runId: string }) {
         );
       })}
 
+
+      {/* ── Survey Coverage Validation (from Stage 3) ── */}
+      {(byType["survey_coverage_validation"] || []).map((item: any, i: number) => {
+        const d = item.results || {};
+        return (
+          <div key={`scv-${i}`} className="space-y-4">
+            <SectionHeader>Survey Coverage Validation</SectionHeader>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard label="Hardcoded Questions" value={d.hardcoded_question_count ?? 0} />
+              <StatCard label="Matched" value={d.matched_questions ?? 0} />
+              <StatCard label="Coverage Score" value={d.coverage_score != null ? `${d.coverage_score}%` : "—"} />
+              <StatCard label="Models Used" value={(d.models_used || []).length} />
+            </div>
+            {(d.gap_sections || []).length > 0 && (
+              <div className="bg-amber-950/20 border border-amber-900/30 rounded-lg p-4">
+                <h4 className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2">Gap Sections (proposed by models but not in instrument)</h4>
+                <div className="flex flex-wrap gap-2">
+                  {d.gap_sections.map((s: string, j: number) => (
+                    <span key={j} className="text-xs px-2 py-1 rounded bg-amber-900/30 text-amber-300">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-gray-500 italic">{d.methodology}</p>
+          </div>
+        );
+      })}
+
       {/* ── Fallback for unknown types ── */}
       {Object.entries(byType)
-        .filter(([type]) => !["cross_tabulation", "descriptive_likert", "model_comparison_likert", "kruskal_wallis", "barrier_heatmap", "segment_profiles", "descriptive_categorical", "inter_llm_reliability", "benchmark_comparison", "disagreement_analysis", "stamp_emotion_classification", "stamp_theme_extraction", "stamp_interpretation_agreement"].includes(type))
+        .filter(([type]) => !["cross_tabulation", "descriptive_likert", "model_comparison_likert", "kruskal_wallis", "barrier_heatmap", "segment_profiles", "descriptive_categorical", "inter_llm_reliability", "benchmark_comparison", "disagreement_analysis", "stamp_emotion_classification", "stamp_theme_extraction", "stamp_interpretation_agreement", "survey_coverage_validation"].includes(type))
         .map(([type, items]) => (
           <div key={type}>
             <SectionHeader>{type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</SectionHeader>
