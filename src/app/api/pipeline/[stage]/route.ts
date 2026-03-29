@@ -40,6 +40,12 @@ export async function POST(
     .eq("run_id", runId)
     .eq("stage", stageNum);
 
+  // Ensure pipeline run status is "running" (important for retries after error)
+  await supabase
+    .from("pipeline_runs")
+    .update({ status: "running" })
+    .eq("id", runId);
+
   // ── Fix 8: Clean previous data on stage retry ──────────────────────────
   const STAGE_TABLES: Record<number, string[]> = {
     1: ["discovery_responses", "discovery_briefs"],
@@ -164,9 +170,9 @@ export async function POST(
       .eq("run_id", runId)
       .eq("stage", stageNum);
 
-    // Fix 9: Update current_stage even on error
+    // Fix 9: Update current_stage and status on error
     await supabase.from("pipeline_runs")
-      .update({ current_stage: stageNum })
+      .update({ current_stage: stageNum, status: "error" })
       .eq("id", runId);
 
     return NextResponse.json({ error: message }, { status: 500 });
