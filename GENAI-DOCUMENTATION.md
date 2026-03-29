@@ -1,0 +1,82 @@
+# GenAI Documentation
+
+**AYTM × Neo Smart Living — CPP AI Hackathon 2026**
+
+---
+
+## 1. Tools & Models Used
+
+| Tool / Model | Provider | Role in Pipeline |
+|---|---|---|
+| **OpenRouter API** | OpenRouter | Unified gateway for all LLM calls |
+| **GPT-4.1-mini** | OpenAI | Discovery, interviews, survey responses, synthesis |
+| **Gemini-2.5-Flash** | Google | Discovery, interviews, survey responses |
+| **Claude-Sonnet-4.6** | Anthropic | Discovery, interviews, survey responses |
+| **Next.js 14 + TypeScript** | Vercel | Frontend application & API routes |
+| **Supabase PostgreSQL** | Supabase | Data layer + realtime subscriptions |
+| **Recharts** | Open-source | Data visualizations (charts, distributions) |
+| **VADER Sentiment** | NLTK-equivalent | Sentiment analysis (local, no API) |
+| **Vercel** | Vercel | Production deployment |
+
+All three LLMs are accessed through OpenRouter, enabling STAMP (Structured Taxonomy AI Measurement Protocol) — a multi-model reliability methodology where heterogeneous models independently generate outputs at each stage, and inter-model agreement is measured via Krippendorff's alpha.
+
+---
+
+## 2. AI-Generated Components
+
+**Stage 1 — Discovery:** Three models each answer 10 strategic market research questions about the Neo Smart Living product category. An AI-generated synthesis produces a consolidated research brief with themes, opportunities, and risks.
+
+**Stage 2 — Depth Interviews:** 30 simulated depth interviews (10 personas × 3 models) with 8 core questions plus adaptive follow-ups. AI generates emotion classifications and extracts themes across all interviews.
+
+**Stage 3 — Survey Design:** Three models independently design survey instruments based on Stage 2 themes. AI performs cross-model coverage analysis to identify consensus questions and gaps.
+
+**Stage 4 — Survey Responses:** 90 synthetic respondents (5 demographic segments × 6 respondents × 3 models) complete the designed survey. Each model generates structured Likert-scale and categorical responses grounded in persona profiles.
+
+**Stage 5 — Statistical Analysis:** Pure computation — no AI. Mann-Whitney U tests, Kruskal-Wallis H tests, bootstrap confidence intervals, and Krippendorff's alpha are calculated deterministically in TypeScript.
+
+**Stage 6 — Quality Validation:** Pure computation — no AI. Automated bias detection, inter-model reliability scoring, and benchmark comparison against real aytm N=600 survey data.
+
+---
+
+## 3. Prompt Strategies
+
+- **Stage 1 (Discovery):** Models are assigned a market research consultant role and given 10 strategic questions covering market sizing, competitive landscape, consumer pain points, and adoption barriers. Temperature: default.
+
+- **Stage 2 (Interviews):** Persona-grounded interview simulation with detailed demographic and psychographic profiles. 8 core questions with adaptive follow-ups based on prior answers. Temperature: 0.8 for natural conversational variation.
+
+- **Stage 3 (Survey Design):** Survey methodologist role with explicit instructions for theme-to-question traceability — every survey question must map back to a Stage 2 theme. Temperature: 0.4 for methodological precision.
+
+- **Stage 4 (Survey Responses):** Third-person prediction framing ("predict how this consumer would respond") rather than role-play ("you are this consumer"). Includes calibration anchors, anti-central-tendency instructions, and 13 variation seeds (5 positive + 8 skeptical personas including financially constrained, status-quo-satisfied, and risk-averse types). Temperature: 0.7.
+
+- **Synthesis:** Multi-model consensus extraction identifies points of agreement and divergence across all three LLMs, weighting high-agreement findings more heavily.
+
+---
+
+## 4. Human Modifications
+
+**Sycophancy Reduction Techniques:** Third-person prediction framing, calibration anchors, explicit rejection permission, and anti-central-tendency instructions — all designed by humans based on published research (arxiv:2512.22725, TACL 2024).
+
+**Statistical Implementations:** Mann-Whitney U, Kruskal-Wallis H, bootstrap confidence intervals, and Krippendorff's alpha — hand-coded in TypeScript without external statistical libraries.
+
+**Acquiescence Bias Correction:** Deterministic post-hoc correction that deflates responses when >80% of a respondent's Likert answers are 4-5. Pure code, not AI.
+
+**Persona Profiles & Variation Seeds:** 13 variation seeds hand-designed based on Southern California homeowner demographics. 8 of 13 seeds are explicitly skeptical to counteract LLM positivity bias.
+
+**Survey Schema Design:** Question structure follows established market research methodology (Likert scales, forced-choice, MaxDiff-style concept testing).
+
+**Benchmark Validation:** Results are compared against real aytm survey data (N=600 US homeowners) to measure synthetic-to-real alignment gaps.
+
+---
+
+## 5. Responsible AI Statement
+
+All data generated by this pipeline is clearly labeled as **synthetic**. The pipeline produces N=90 survey respondents and N=30 depth interviews — synthetic personas that do not represent real people.
+
+**Limitations acknowledged:**
+- Synthetic responses exhibit systematic biases (positivity, central tendency) despite mitigation
+- Small sample sizes limit statistical power
+- LLM-generated personas cannot capture the full complexity of real human attitudes
+
+**Intended use:** Hypothesis generation, early-stage product concept exploration, and research methodology demonstration — not decision-grade market data.
+
+**Transparency:** The full pipeline maintains traceability from discovery themes → interview insights → survey questions → validated results. Inter-model reliability (Krippendorff's alpha) is reported for every metric, honestly flagging where synthetic data is unreliable.

@@ -339,18 +339,30 @@ export function PipelineLayout() {
                 from founder interviews to validated survey insights in 6 automated stages.
               </p>
 
-              <Link href="/methodology" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 text-sm font-medium hover:bg-indigo-600/30 hover:border-indigo-500/50 transition-all duration-200 mb-10 backdrop-blur-sm">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                View STAMP Methodology &amp; Bias Mitigation
-                <svg className="w-3.5 h-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </Link>
+              <div className="flex flex-wrap justify-center gap-3 mb-10">
+                <Link href="/methodology" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 text-sm font-medium hover:bg-indigo-600/30 hover:border-indigo-500/50 transition-all duration-200 backdrop-blur-sm">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  STAMP Methodology
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </Link>
+                <Link href="/genai" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-600/30 hover:border-emerald-500/50 transition-all duration-200 backdrop-blur-sm">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  GenAI Documentation
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </Link>
+              </div>
 
               {/* Pipeline Overview Cards */}
-              <div className="grid grid-cols-4 md:grid-cols-7 gap-2 max-w-4xl mx-auto mb-10">
+              <div className="grid grid-cols-4 md:grid-cols-8 gap-2 max-w-5xl mx-auto mb-10">
                 {STAGES.map((s, i) => (
                   <div key={s.id} className="group relative" style={{ animationDelay: `${i * 80}ms` }}>
                     <div className="bg-gray-900/80 border border-gray-800/60 rounded-lg p-3 text-center hover:border-blue-700/40 hover:bg-blue-950/20 transition-all duration-200">
@@ -371,6 +383,18 @@ export function PipelineLayout() {
                       </svg>
                     </div>
                     <div className="text-[10px] text-indigo-400/70 group-hover:text-indigo-300 transition-colors leading-tight mt-0.5">Methodology</div>
+                  </div>
+                </Link>
+                {/* GenAI Docs card */}
+                <Link href="/genai" className="group relative" style={{ animationDelay: '560ms' }}>
+                  <div className="bg-emerald-950/40 border border-emerald-700/30 rounded-lg p-3 text-center hover:border-emerald-500/50 hover:bg-emerald-900/30 transition-all duration-200 h-full flex flex-col justify-center">
+                    <div className="text-lg font-bold text-emerald-400 group-hover:text-emerald-300 transition-colors">
+                      <svg className="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </div>
+                    <div className="text-[10px] text-emerald-400/70 group-hover:text-emerald-300 transition-colors leading-tight mt-0.5">GenAI Docs</div>
                   </div>
                 </Link>
               </div>
