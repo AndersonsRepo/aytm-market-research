@@ -72,8 +72,14 @@ export function PipelineLayout() {
       .then(data => {
         setLiveRuns(data.liveRuns || []);
         setDemoRuns(data.demoRuns || []);
-        // Auto-reconnect: if there's a running live run, load it
-        const runningRun = (data.liveRuns || []).find((r: PipelineRun) => r.status === "running");
+        // Auto-reconnect: if there's a recently-started running live run, load it
+        // (Skip stale "running" runs older than 2h — they're likely failed runs
+        // from before the status-fix was deployed)
+        const TWO_HOURS = 2 * 60 * 60 * 1000;
+        const runningRun = (data.liveRuns || []).find((r: PipelineRun) =>
+          r.status === "running" &&
+          Date.now() - new Date(r.started_at).getTime() < TWO_HOURS
+        );
         if (runningRun) {
           handleLoadRun(runningRun);
         }
