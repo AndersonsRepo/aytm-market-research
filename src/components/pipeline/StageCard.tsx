@@ -720,6 +720,97 @@ function AnalysisResults({ runId }: { runId: string }) {
               );
             }
 
+
+            {/* ── cross_tabulation ── */}
+            if (type === "cross_tabulation") {
+              const modelMeans = data.model_means as Record<string, Record<string, number>> | undefined;
+              const segmentMeans = data.segment_means as Record<string, Record<string, number>> | undefined;
+              const keyVars = ["Q1", "Q2", "Q7", "Q0b", "Q5_cost", "Q5_hoa", "Q5_permit", "Q5_space", "Q5_financing", "Q5_quality", "Q5_resale"];
+              const keyLabels: Record<string, string> = {
+                Q1: "Purchase Interest", Q2: "Purchase Likelihood", Q7: "Permit Effect",
+                Q0b: "Category Interest", Q5_cost: "Cost Barrier", Q5_hoa: "HOA Barrier",
+                Q5_permit: "Permit Barrier", Q5_space: "Space Barrier", Q5_financing: "Financing Barrier",
+                Q5_quality: "Quality Barrier", Q5_resale: "Resale Barrier",
+              };
+              const cellBg = (v: number) => v >= 4 ? "bg-emerald-900/40 text-emerald-400" : v >= 3.5 ? "bg-green-900/30 text-green-400" : v >= 3 ? "bg-yellow-900/30 text-yellow-400" : v >= 2.5 ? "bg-orange-900/30 text-orange-400" : "bg-red-900/30 text-red-400";
+              const modelColors = ["#3b82f6", "#22c55e", "#f59e0b"];
+
+              return (
+                <div key={i} className="space-y-5 mb-4">
+                  {/* Overview stats */}
+                  <div className="flex gap-3">
+                    <Tag color="bg-blue-900/50 text-blue-300">{data.total_respondents ?? "—"} respondents</Tag>
+                    <Tag color={data.attention_check_pass_rate === 1 ? "bg-emerald-900/50 text-emerald-300" : "bg-yellow-900/50 text-yellow-300"}>
+                      {data.attention_check_pass_rate != null ? `${Math.round(data.attention_check_pass_rate * 100)}% attention pass` : "—"}
+                    </Tag>
+                  </div>
+
+                  {/* Model Means Cards */}
+                  {modelMeans && (
+                    <>
+                      <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Model Comparison</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {Object.entries(modelMeans).map(([model, vals], mi) => (
+                          <div key={model} className="bg-gray-800/40 border border-gray-700 rounded-lg p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: modelColors[mi % modelColors.length] }} />
+                              <span className="text-sm font-semibold text-white">{model}</span>
+                            </div>
+                            <div className="space-y-1.5">
+                              {keyVars.filter(v => vals[v] != null).slice(0, 8).map(v => (
+                                <div key={v} className="flex justify-between text-xs">
+                                  <span className="text-gray-400">{keyLabels[v] || v}</span>
+                                  <span className={`font-mono font-bold ${cellBg(vals[v])}`}>{vals[v]?.toFixed(2)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Segment Heatmap Table */}
+                  {segmentMeans && (
+                    <>
+                      <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Segment Heatmap</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr className="border-b border-gray-700">
+                              <th className="text-left py-2 px-3 text-gray-400 font-medium">Variable</th>
+                              {Object.keys(segmentMeans).map(seg => (
+                                <th key={seg} className="text-center py-2 px-2 text-gray-400 font-medium">
+                                  {seg.length > 16 ? seg.slice(0, 14) + "…" : seg}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {keyVars.filter(v => Object.values(segmentMeans).some(vals => vals[v] != null)).map(v => (
+                              <tr key={v} className="border-b border-gray-800/50">
+                                <td className="py-2 px-3 text-gray-300 font-mono">{keyLabels[v] || v}</td>
+                                {Object.entries(segmentMeans).map(([seg, vals]) => {
+                                  const val = vals[v] ?? 0;
+                                  return (
+                                    <td key={seg} className="py-2 px-2 text-center">
+                                      <span className={`inline-block w-12 rounded px-1 py-0.5 text-xs font-mono font-bold ${cellBg(val)}`}>
+                                        {val.toFixed(2)}
+                                      </span>
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            }
+
             {/* ── Generic fallback ── */}
             return (
               <div key={i} className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 mb-3">
