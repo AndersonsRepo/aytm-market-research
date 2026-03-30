@@ -617,15 +617,46 @@ export function PipelineLayout() {
             ))}
           </div>
 
-          {/* Completion banner */}
+          {/* Completion banner with navigation */}
           {allCompleted && (
-            <div className="mt-8 text-center animate-fade-in-up">
-              <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl bg-emerald-950/30 border border-emerald-700/30 glow-green">
-                <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm text-emerald-300 font-medium">Pipeline Complete</span>
-                <span className="text-xs text-emerald-500/60 font-mono">{formatDuration(runStartedAt, runCompletedAt)}</span>
+            <div className="mt-8 animate-fade-in-up">
+              <div className="bg-gradient-to-r from-emerald-950/30 to-blue-950/30 border border-emerald-700/30 rounded-xl p-5">
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm text-emerald-300 font-medium">Pipeline Complete</span>
+                  {mode === "demo" && <span className="px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 text-[10px] font-medium">DEMO DATA</span>}
+                  {runStartedAt && <span className="text-xs text-emerald-500/60 font-mono">{formatDuration(runStartedAt, runCompletedAt)}</span>}
+                  {totalCost > 0 && <span className="text-xs text-emerald-500/60 font-mono">${totalCost.toFixed(4)}</span>}
+                </div>
+
+                <p className="text-xs text-gray-400 text-center mb-4">
+                  {mode === "demo"
+                    ? "Pre-generated data loaded across all 6 stages. Click any stage above to explore, or jump to a key page:"
+                    : "All 6 stages executed successfully. Explore the results:"}
+                </p>
+
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Link href={`/stage/2?runId=${runId}`} className="px-4 py-2 rounded-lg bg-gray-800/80 border border-gray-700 text-sm text-gray-300 hover:text-white hover:border-gray-500 transition-all">
+                    Interviews &amp; Emotions
+                  </Link>
+                  <Link href={`/stage/5?runId=${runId}`} className="px-4 py-2 rounded-lg bg-blue-900/40 border border-blue-700/50 text-sm text-blue-300 hover:text-white hover:border-blue-500 transition-all font-medium">
+                    Analysis &amp; STAMP
+                  </Link>
+                  <Link href={`/stage/6?runId=${runId}`} className="px-4 py-2 rounded-lg bg-gray-800/80 border border-gray-700 text-sm text-gray-300 hover:text-white hover:border-gray-500 transition-all">
+                    Validation Report
+                  </Link>
+                  <Link href="/insights" className="px-4 py-2 rounded-lg bg-violet-900/40 border border-violet-700/50 text-sm text-violet-300 hover:text-white hover:border-violet-500 transition-all font-medium">
+                    Key Insights
+                  </Link>
+                  <Link href="/methodology" className="px-4 py-2 rounded-lg bg-gray-800/80 border border-gray-700 text-sm text-gray-300 hover:text-white hover:border-gray-500 transition-all">
+                    Methodology
+                  </Link>
+                  <Link href="/genai" className="px-4 py-2 rounded-lg bg-gray-800/80 border border-gray-700 text-sm text-gray-300 hover:text-white hover:border-gray-500 transition-all">
+                    GenAI Docs
+                  </Link>
+                </div>
               </div>
             </div>
           )}
