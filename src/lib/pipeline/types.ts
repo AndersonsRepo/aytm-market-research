@@ -88,6 +88,15 @@ export type InterviewQuestionKey =
   | 'IQ5' | 'IQ6' | 'IQ7' | 'IQ8'
   | 'additional_thoughts';
 
+export type FollowUpKey = 'FU1' | 'FU2' | 'FU3' | 'FU4' | 'FU5';
+
+export interface FollowUpExchange {
+  probe_key: FollowUpKey;
+  trigger: string;
+  question: string;
+  response: string;
+}
+
 export interface InterviewTranscript {
   id?: string;
   run_id: string;

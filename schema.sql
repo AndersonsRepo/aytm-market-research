@@ -54,6 +54,7 @@ CREATE TABLE interview_transcripts (
   persona_name TEXT NOT NULL,
   demographics JSONB NOT NULL,
   responses JSONB NOT NULL,
+  follow_ups JSONB, -- multi-turn follow-up exchanges (array of {probe_key, trigger, question, response})
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

@@ -46,6 +46,43 @@ export const INTERVIEW_RESPONSE_KEYS = [
   'additional_thoughts',
 ] as const;
 
+// --- Follow-up Probe Questions (multi-turn) ---
+// Triggered conditionally based on initial response content
+
+export const FOLLOW_UP_PROBES: Record<string, {
+  trigger: 'cost_concern' | 'high_interest' | 'skepticism' | 'space_concern' | 'hoa_concern';
+  question: string;
+  targetQuestion: string; // which IQ response triggers this
+}> = {
+  FU1: {
+    trigger: 'cost_concern',
+    targetQuestion: 'IQ7',
+    question: 'You mentioned cost as a factor. If Neo Smart Living offered a financing plan — say $350/month over 6 years — would that change your thinking? Why or why not?',
+  },
+  FU2: {
+    trigger: 'high_interest',
+    targetQuestion: 'IQ6',
+    question: 'You seem enthusiastic about the concept. Walk me through your ideal scenario — when would you realistically pull the trigger on something like this, and what would the first week look like?',
+  },
+  FU3: {
+    trigger: 'skepticism',
+    targetQuestion: 'IQ6',
+    question: 'I sense some hesitation. Is it more about whether you personally need this, or more about whether the product itself is worth the investment? What would a company need to prove to earn your trust here?',
+  },
+  FU4: {
+    trigger: 'space_concern',
+    targetQuestion: 'IQ7',
+    question: 'You raised space constraints. If the structure were 30% smaller — say 85 sq ft instead of 120 — at a lower price point, would that open up possibilities? Or is the issue more fundamental than dimensions?',
+  },
+  FU5: {
+    trigger: 'hoa_concern',
+    targetQuestion: 'IQ7',
+    question: 'HOA restrictions came up. Have you actually checked your HOA rules on accessory structures, or is it more of an assumption? If Neo Smart Living provided a "permit concierge" service to handle HOA approval, how much would that matter?',
+  },
+};
+
+export const FOLLOW_UP_RESPONSE_KEYS = Object.keys(FOLLOW_UP_PROBES) as string[];
+
 // --- Interview Personas (30 total) ---
 
 export const INTERVIEW_PERSONAS: InterviewPersona[] = [

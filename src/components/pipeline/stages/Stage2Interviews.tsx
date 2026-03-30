@@ -158,12 +158,19 @@ export function Stage2Interviews({ runId }: { runId: string }) {
   return (
     <div className="space-y-6">
       {/* ── Overview Stats ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Total Interviews" value={transcripts.length} sub={`across ${models.length} models`} />
-        <StatCard label="Themes Identified" value={themes.length} sub={`${llmThemes.length} LLM + ${ldaThemes.length} LDA`} />
-        <StatCard label="Dominant Emotion" value={emotionCounts[0]?.[0] || "—"} sub={`${emotionCounts[0]?.[1] || 0} respondents`} />
-        <StatCard label="Positive Sentiment" value={`${Math.round((sentiments.positive / totalSentiment) * 100)}%`} sub={`${sentiments.positive} of ${totalSentiment}`} />
-      </div>
+      {(() => {
+        const followUpCount = transcripts.filter(t => t.follow_ups && t.follow_ups.length > 0).length;
+        const totalFollowUps = transcripts.reduce((sum: number, t: any) => sum + (t.follow_ups?.length || 0), 0);
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <StatCard label="Total Interviews" value={transcripts.length} sub={`across ${models.length} models`} />
+            <StatCard label="Follow-up Probes" value={totalFollowUps} sub={`${followUpCount} interviews deepened`} />
+            <StatCard label="Themes Identified" value={themes.length} sub={`${llmThemes.length} LLM + ${ldaThemes.length} LDA`} />
+            <StatCard label="Dominant Emotion" value={emotionCounts[0]?.[0] || "—"} sub={`${emotionCounts[0]?.[1] || 0} respondents`} />
+            <StatCard label="Positive Sentiment" value={`${Math.round((sentiments.positive / totalSentiment) * 100)}%`} sub={`${sentiments.positive} of ${totalSentiment}`} />
+          </div>
+        );
+      })()}
 
       {/* ── Sentiment Distribution Bar ── */}
       <div>
@@ -379,6 +386,28 @@ export function Stage2Interviews({ runId }: { runId: string }) {
                   </div>
                 );
               })}
+              {/* Follow-up probes (multi-turn) */}
+              {selectedTranscript.follow_ups && selectedTranscript.follow_ups.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-blue-800/40">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Follow-up Probes</span>
+                    <span className="px-2 py-0.5 rounded bg-blue-900/40 text-blue-300 text-[10px] font-medium">
+                      Multi-turn
+                    </span>
+                  </div>
+                  {(selectedTranscript.follow_ups as any[]).map((fu: any, i: number) => (
+                    <div key={i} className="mb-4 pl-3 border-l-2 border-blue-700/50">
+                      <div className="text-xs text-blue-300 font-medium mb-1">
+                        {fu.probe_key}: {fu.question}
+                      </div>
+                      <p className="text-sm text-gray-300 leading-relaxed">{fu.response}</p>
+                      <span className="text-[10px] text-gray-600 mt-1 inline-block">
+                        Triggered by: {fu.trigger}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

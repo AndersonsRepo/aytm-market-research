@@ -12,6 +12,7 @@ export async function GET() {
     `ALTER TABLE stage_progress ADD COLUMN IF NOT EXISTS tokens_used INTEGER DEFAULT 0`,
     `ALTER TABLE stage_progress ADD COLUMN IF NOT EXISTS cost_estimate NUMERIC(10,6) DEFAULT 0`,
     `ALTER TABLE pipeline_runs ADD COLUMN IF NOT EXISTS total_cost NUMERIC(10,6) DEFAULT 0`,
+    `ALTER TABLE interview_transcripts ADD COLUMN IF NOT EXISTS follow_ups JSONB`,
   ];
 
   const results: string[] = [];

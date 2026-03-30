@@ -17,13 +17,15 @@
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import type { Stage5Result, AnalysisType } from "@/lib/pipeline/types";
-import { mannWhitneyU, kruskalWallisH, krippendorffAlpha } from "@/lib/pipeline/stats";
+import { mannWhitneyU, kruskalWallisH, krippendorffAlpha, kolmogorovSmirnovTest, bootstrapCI } from "@/lib/pipeline/stats";
 import {
   BENCHMARK_PURCHASE_INTEREST,
   BENCHMARK_PURCHASE_LIKELIHOOD,
   BENCHMARK_USE_CASE,
   BENCHMARK_GREATEST_BARRIER,
   BENCHMARK_BEST_CONCEPT,
+  BENCHMARK_BARRIER_SEVERITY,
+  BENCHMARK_PARTNERSHIP,
 } from "@/lib/pipeline/benchmark";
 import {
   LIKERT_KEYS,
@@ -631,9 +633,138 @@ export async function runStage5(
     realN: BENCHMARK_BEST_CONCEPT.n,
   });
 
+  // ── 8a. KS tests: formal statistical comparison of synthetic vs real ────
+
+  /** Expand a Likert distribution (1-5 scale) from benchmark into sample array */
+  function expandLikertDistribution(
+    dist: Record<number, { pct: number }>,
+    n: number,
+  ): number[] {
+    const samples: number[] = [];
+    for (const [value, info] of Object.entries(dist)) {
+      const count = Math.round((info.pct / 100) * n);
+      for (let i = 0; i < count; i++) samples.push(Number(value));
+    }
+    return samples;
+  }
+
+  /** Extract numeric values from responses for a given key */
+  function extractNumericValues(key: string, rows: ResponseRow[]): number[] {
+    return rows
+      .map(r => getNumeric(r.responses, key))
+      .filter((v): v is number => v !== null);
+  }
+
+  const ksResults: Record<string, unknown>[] = [];
+
+  // Q1 (Purchase Interest) — Likert 1-5
+  const synQ1Values = extractNumericValues('Q1', responses);
+  const realQ1Values = expandLikertDistribution(BENCHMARK_PURCHASE_INTEREST.distribution, BENCHMARK_PURCHASE_INTEREST.n);
+  if (synQ1Values.length > 0 && realQ1Values.length > 0) {
+    const ks = kolmogorovSmirnovTest(synQ1Values, realQ1Values);
+    const synMean = synQ1Values.reduce((s, v) => s + v, 0) / synQ1Values.length;
+    const synCI = bootstrapCI(synQ1Values, d => d.reduce((s, v) => s + v, 0) / d.length);
+    ksResults.push({
+      variable: 'Q1',
+      label: 'Purchase Interest',
+      D: round4(ks.D),
+      p: round4(ks.p),
+      significant: ks.p < 0.05,
+      interpretation: ks.p >= 0.05
+        ? 'Synthetic distribution statistically aligns with real data'
+        : 'Synthetic distribution significantly differs from real data',
+      synthetic: { n: synQ1Values.length, mean: round3(synMean), ci_lower: round3(synCI.lower), ci_upper: round3(synCI.upper) },
+      real: { n: BENCHMARK_PURCHASE_INTEREST.n, mean: BENCHMARK_PURCHASE_INTEREST.mean },
+      mean_delta: round3(synMean - BENCHMARK_PURCHASE_INTEREST.mean),
+    });
+  }
+
+  // Q2 (Purchase Likelihood) — Likert 1-5
+  const synQ2Values = extractNumericValues('Q2', responses);
+  const realQ2Values = expandLikertDistribution(BENCHMARK_PURCHASE_LIKELIHOOD.distribution, BENCHMARK_PURCHASE_LIKELIHOOD.n);
+  if (synQ2Values.length > 0 && realQ2Values.length > 0) {
+    const ks = kolmogorovSmirnovTest(synQ2Values, realQ2Values);
+    const synMean = synQ2Values.reduce((s, v) => s + v, 0) / synQ2Values.length;
+    const synCI = bootstrapCI(synQ2Values, d => d.reduce((s, v) => s + v, 0) / d.length);
+    ksResults.push({
+      variable: 'Q2',
+      label: 'Purchase Likelihood (24mo)',
+      D: round4(ks.D),
+      p: round4(ks.p),
+      significant: ks.p < 0.05,
+      interpretation: ks.p >= 0.05
+        ? 'Synthetic distribution statistically aligns with real data'
+        : 'Synthetic distribution significantly differs from real data',
+      synthetic: { n: synQ2Values.length, mean: round3(synMean), ci_lower: round3(synCI.lower), ci_upper: round3(synCI.upper) },
+      real: { n: BENCHMARK_PURCHASE_LIKELIHOOD.n, mean: BENCHMARK_PURCHASE_LIKELIHOOD.mean },
+      mean_delta: round3(synMean - BENCHMARK_PURCHASE_LIKELIHOOD.mean),
+    });
+  }
+
+  // Q19 (Partnership Impact) — Likert 1-5
+  const synQ19Values = extractNumericValues('Q19', responses);
+  const realQ19Values = expandLikertDistribution(
+    Object.fromEntries(Object.entries(BENCHMARK_PARTNERSHIP.distribution).map(([k, v]) => [k, { pct: v.pct }])),
+    BENCHMARK_PARTNERSHIP.n,
+  );
+  if (synQ19Values.length > 0 && realQ19Values.length > 0) {
+    const ks = kolmogorovSmirnovTest(synQ19Values, realQ19Values);
+    const synMean = synQ19Values.reduce((s, v) => s + v, 0) / synQ19Values.length;
+    const synCI = bootstrapCI(synQ19Values, d => d.reduce((s, v) => s + v, 0) / d.length);
+    ksResults.push({
+      variable: 'Q19',
+      label: 'Partnership Impact',
+      D: round4(ks.D),
+      p: round4(ks.p),
+      significant: ks.p < 0.05,
+      interpretation: ks.p >= 0.05
+        ? 'Synthetic distribution statistically aligns with real data'
+        : 'Synthetic distribution significantly differs from real data',
+      synthetic: { n: synQ19Values.length, mean: round3(synMean), ci_lower: round3(synCI.lower), ci_upper: round3(synCI.upper) },
+      real: { n: BENCHMARK_PARTNERSHIP.n, mean: BENCHMARK_PARTNERSHIP.mean },
+      mean_delta: round3(synMean - BENCHMARK_PARTNERSHIP.mean),
+    });
+  }
+
+  // Barrier variables (Q5_*) — compare top-2 percentages against benchmark
+  const barrierKSResults: Record<string, unknown>[] = [];
+  for (const [qKey, benchInfo] of Object.entries(BENCHMARK_BARRIER_SEVERITY.barriers)) {
+    const synValues = extractNumericValues(qKey, responses);
+    if (synValues.length === 0) continue;
+    const synTop2Pct = round3((synValues.filter(v => v >= 4).length / synValues.length) * 100);
+    const realTop2Pct = benchInfo.top2pct;
+    barrierKSResults.push({
+      variable: qKey,
+      label: benchInfo.label,
+      synthetic_top2_pct: synTop2Pct,
+      real_top2_pct: realTop2Pct,
+      delta_pct: round3(synTop2Pct - realTop2Pct),
+      aligns: Math.abs(synTop2Pct - realTop2Pct) < 15,
+    });
+  }
+
+  // Compute overall alignment score
+  const alignedCount = ksResults.filter(r => !(r.significant as boolean)).length;
+  const totalKS = ksResults.length;
+  const barrierAligned = barrierKSResults.filter(r => r.aligns as boolean).length;
+
   await saveAnalysis(supabase, runId, "benchmark_comparison", {
     comparisons: benchmarkComparisons,
-    methodology: 'Synthetic distributions compared against real aytm survey (N=600)',
+    ks_tests: {
+      results: ksResults,
+      barrier_comparison: barrierKSResults,
+      summary: {
+        likert_tests: totalKS,
+        likert_aligned: alignedCount,
+        likert_divergent: totalKS - alignedCount,
+        barrier_tests: barrierKSResults.length,
+        barrier_aligned: barrierAligned,
+        overall_alignment_score: round3(
+          ((alignedCount + barrierAligned) / (totalKS + barrierKSResults.length)) * 100
+        ),
+      },
+      methodology: 'Two-sample Kolmogorov-Smirnov test (Likert variables) + top-2-box comparison (barriers). p < 0.05 = significant divergence from real survey.',
+    },
   });
 
 

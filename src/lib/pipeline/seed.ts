@@ -857,6 +857,45 @@ export async function seedDemoData(supabase: SupabaseClient, runId: string): Pro
     }
 
     const interviewId = `${persona.persona_id}_${modelLabel}`;
+
+    // Generate follow-up probes based on tendency
+    const followUps: Array<{ probe_key: string; trigger: string; question: string; response: string }> = [];
+    const fuRng = new SeededRNG(seedHash(persona.persona_id, modelLabel, "followup"));
+    if (tendency === "skeptical" || tendency === "negative") {
+      followUps.push({
+        probe_key: "FU1",
+        trigger: "cost_concern",
+        question: "You mentioned cost as a factor. If Neo Smart Living offered a financing plan — say $350/month over 6 years — would that change your thinking?",
+        response: fuRng.choice([
+          "Financing might help, but $350 a month is still a car payment. I'd need to see it as a genuine investment, not just another monthly expense. Maybe if they could show me the ROI through rental income or home value appreciation.",
+          "Honestly, financing doesn't change the underlying question of whether I need this. It just spreads the pain out. I'd rather save up and buy something I'm confident about than commit to 6 years of payments for a backyard structure.",
+          "That's more reasonable, but I'd still want to compare it against other home improvements. For $350 a month over 6 years, I could renovate my kitchen or add a real room addition. The math has to work.",
+        ]),
+      });
+    } else if (tendency === "enthusiastic" || tendency === "positive") {
+      followUps.push({
+        probe_key: "FU2",
+        trigger: "high_interest",
+        question: "Walk me through your ideal scenario — when would you realistically pull the trigger on something like this?",
+        response: fuRng.choice([
+          "I'd probably start seriously looking this spring. My lease on the coworking space is up in June, so the timing could work out perfectly. First week would be setting up my desk, monitors, and making it my own. I'd probably work from it every day.",
+          "If they had a showroom I could visit, I'd go this weekend. Realistically, I'd want to plan it around good weather — maybe order in early spring for a summer install. The first week would be me not leaving that space. I'd set up everything and finally have my own retreat.",
+          "I think within the next year. I'd need to check my HOA first and measure the backyard. But the idea of having a dedicated space away from the house is really appealing. First thing I'd do is set up a meditation corner and a small desk.",
+        ]),
+      });
+    }
+    if ((tendency === "skeptical" || tendency === "mixed") && persona.hoa_status === "Yes") {
+      followUps.push({
+        probe_key: "FU5",
+        trigger: "hoa_concern",
+        question: "Have you actually checked your HOA rules on accessory structures?",
+        response: fuRng.choice([
+          "I haven't checked the specific rules, honestly. It's more of an assumption based on how strict they are about everything else — paint colors, fence heights, you name it. A permit concierge service would be huge. That's actually one of the biggest barriers for me.",
+          "I looked at our CC&Rs briefly and it mentions 'no permanent structures without board approval.' The approval process alone takes 3-6 months. If they could handle that for me, it removes a major headache.",
+        ]),
+      });
+    }
+
     transcriptRows.push({
       run_id: runId,
       interview_id: interviewId,
@@ -873,6 +912,7 @@ export async function seedDemoData(supabase: SupabaseClient, runId: string): Pro
         hoa_status: persona.hoa_status,
       },
       responses,
+      follow_ups: followUps.length > 0 ? followUps : null,
     });
 
     // Generate analysis

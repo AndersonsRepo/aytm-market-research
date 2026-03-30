@@ -628,6 +628,124 @@ export function Stage5Analysis({ runId }: { runId: string }) {
                 </div>
               );
             })}
+
+            {/* ── KS Test Results ── */}
+            {(() => {
+              const ksTests = item.results?.ks_tests;
+              if (!ksTests) return null;
+              const ksResults = (ksTests.results || []) as Array<{
+                variable: string; label: string; D: number; p: number; significant: boolean;
+                interpretation: string;
+                synthetic: { n: number; mean: number; ci_lower: number; ci_upper: number };
+                real: { n: number; mean: number };
+                mean_delta: number;
+              }>;
+              const barrierComp = (ksTests.barrier_comparison || []) as Array<{
+                variable: string; label: string; synthetic_top2_pct: number; real_top2_pct: number; delta_pct: number; aligns: boolean;
+              }>;
+              const summary = ksTests.summary as { overall_alignment_score: number; likert_aligned: number; likert_tests: number; barrier_aligned: number; barrier_tests: number } | undefined;
+
+              return (
+                <div className="mt-6 space-y-4">
+                  <SectionHeader>Statistical Validation — KS Tests (Synthetic vs Real)</SectionHeader>
+                  <p className="text-xs text-gray-500">
+                    Two-sample Kolmogorov-Smirnov test: p {"\u2265"} 0.05 means synthetic distribution aligns with real data. p {"<"} 0.05 = significant divergence.
+                  </p>
+
+                  {/* Alignment Score Hero */}
+                  {summary && (
+                    <div className="flex items-center gap-4 bg-gray-800/40 border border-gray-700 rounded-lg p-4">
+                      <div className={`text-3xl font-bold ${summary.overall_alignment_score >= 70 ? "text-green-400" : summary.overall_alignment_score >= 50 ? "text-yellow-400" : "text-red-400"}`}>
+                        {summary.overall_alignment_score.toFixed(0)}%
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-white">Overall Alignment Score</div>
+                        <div className="text-xs text-gray-400">
+                          {summary.likert_aligned}/{summary.likert_tests} Likert tests pass + {summary.barrier_aligned}/{summary.barrier_tests} barrier comparisons align
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* KS Test Table */}
+                  {ksResults.length > 0 && (
+                    <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4 overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-gray-400 border-b border-gray-700">
+                            <th className="text-left py-2 pr-2">Variable</th>
+                            <th className="text-center py-2 px-2">Syn. Mean [95% CI]</th>
+                            <th className="text-center py-2 px-2">Real Mean</th>
+                            <th className="text-center py-2 px-2">{"\u0394"} Mean</th>
+                            <th className="text-center py-2 px-2">KS D</th>
+                            <th className="text-center py-2 px-2">p-value</th>
+                            <th className="text-center py-2 px-2">Result</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ksResults.map((r, j) => (
+                            <tr key={j} className={`border-b border-gray-800/50 ${r.significant ? "bg-red-950/10" : "bg-green-950/10"}`}>
+                              <td className="py-2 pr-2 text-gray-300 font-medium">{r.label}</td>
+                              <td className="text-center py-2 px-2 font-mono text-blue-400">
+                                {r.synthetic.mean.toFixed(2)} [{r.synthetic.ci_lower.toFixed(2)}, {r.synthetic.ci_upper.toFixed(2)}]
+                              </td>
+                              <td className="text-center py-2 px-2 font-mono text-green-400">{r.real.mean.toFixed(2)}</td>
+                              <td className={`text-center py-2 px-2 font-mono font-bold ${Math.abs(r.mean_delta) <= 0.3 ? "text-gray-400" : "text-yellow-400"}`}>
+                                {r.mean_delta > 0 ? "+" : ""}{r.mean_delta.toFixed(2)}
+                              </td>
+                              <td className="text-center py-2 px-2 font-mono text-gray-400">{r.D.toFixed(4)}</td>
+                              <td className={`text-center py-2 px-2 font-mono ${r.significant ? "text-red-400 font-bold" : "text-green-400"}`}>
+                                {r.p.toFixed(4)}
+                              </td>
+                              <td className="text-center py-2 px-2">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${r.significant ? "bg-red-900/40 text-red-300" : "bg-green-900/40 text-green-300"}`}>
+                                  {r.significant ? "DIVERGES" : "ALIGNS"}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Barrier Top-2-Box Comparison */}
+                  {barrierComp.length > 0 && (
+                    <div>
+                      <h5 className="text-sm font-semibold text-white mb-2">Barrier Severity — Top-2-Box Comparison</h5>
+                      <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4 overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-gray-400 border-b border-gray-700">
+                              <th className="text-left py-2 pr-2">Barrier</th>
+                              <th className="text-center py-2 px-2">Synthetic Top-2 %</th>
+                              <th className="text-center py-2 px-2">Real Top-2 %</th>
+                              <th className="text-center py-2 px-2">{"\u0394"} (pp)</th>
+                              <th className="text-center py-2 px-2">Aligned?</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {barrierComp.map((b, j) => (
+                              <tr key={j} className={`border-b border-gray-800/50 ${b.aligns ? "" : "bg-red-950/10"}`}>
+                                <td className="py-1.5 pr-2 text-gray-300">{b.label}</td>
+                                <td className="text-center py-1.5 px-2 font-mono text-blue-400">{b.synthetic_top2_pct.toFixed(1)}%</td>
+                                <td className="text-center py-1.5 px-2 font-mono text-green-400">{b.real_top2_pct.toFixed(1)}%</td>
+                                <td className={`text-center py-1.5 px-2 font-mono font-bold ${Math.abs(b.delta_pct) <= 10 ? "text-gray-400" : "text-yellow-400"}`}>
+                                  {b.delta_pct > 0 ? "+" : ""}{b.delta_pct.toFixed(1)}
+                                </td>
+                                <td className="text-center py-1.5 px-2">
+                                  <span className={b.aligns ? "text-green-400" : "text-red-400"}>{b.aligns ? "Yes" : "No"}</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         );
       })}

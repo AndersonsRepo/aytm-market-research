@@ -9,6 +9,7 @@ import type {
   InterviewPersona,
   EmotionClassification,
   InterviewQuestionKey,
+  FollowUpExchange,
 } from '@/lib/pipeline/types';
 import {
   MODEL_IDS,
@@ -16,6 +17,7 @@ import {
   INTERVIEW_PERSONAS,
   INTERVIEW_QUESTIONS,
   INTERVIEW_RESPONSE_KEYS,
+  FOLLOW_UP_PROBES,
   EMOTION_TAXONOMY,
   MAX_CONCURRENT_API_CALLS,
 } from '@/lib/pipeline/constants';
@@ -152,12 +154,109 @@ function validateResponses(data: Record<string, unknown>): Record<string, string
   return validated;
 }
 
+// ─── Follow-up Probe Logic ────────────────────────────────────────────────
+
+const COST_KEYWORDS = ['cost', 'expensive', 'price', 'afford', '$23', 'budget', 'money', 'financing', 'payment', 'pricey'];
+const SKEPTICISM_KEYWORDS = ['doubt', 'skeptic', 'not sure', 'hesitant', 'questionable', 'gimmick', 'unnecessary', 'don\'t need', 'wouldn\'t', 'hard sell'];
+const SPACE_KEYWORDS = ['space', 'small yard', 'tiny', 'not enough room', 'footprint', 'backyard is small', 'limited'];
+const HOA_KEYWORDS = ['hoa', 'homeowner association', 'community rules', 'deed restriction', 'covenant', 'approval', 'neighborhood rules'];
+
+/** Detect which follow-up probes should fire based on interview responses */
+function detectFollowUpTriggers(responses: Record<string, string>): string[] {
+  const triggers: string[] = [];
+  const iq6 = (responses.IQ6 || '').toLowerCase();
+  const iq7 = (responses.IQ7 || '').toLowerCase();
+
+  // Cost concern in IQ7
+  if (COST_KEYWORDS.some(kw => iq7.includes(kw))) {
+    triggers.push('FU1');
+  }
+
+  // High interest in IQ6 (positive language without major concerns)
+  const positiveWords = ['love', 'amazing', 'excited', 'perfect', 'great', 'fantastic', 'absolutely', 'sign me up', 'want one'];
+  if (positiveWords.some(kw => iq6.includes(kw)) && !SKEPTICISM_KEYWORDS.some(kw => iq6.includes(kw))) {
+    triggers.push('FU2');
+  }
+
+  // Skepticism in IQ6
+  if (SKEPTICISM_KEYWORDS.some(kw => iq6.includes(kw))) {
+    triggers.push('FU3');
+  }
+
+  // Space concern in IQ7
+  if (SPACE_KEYWORDS.some(kw => iq7.includes(kw))) {
+    triggers.push('FU4');
+  }
+
+  // HOA concern in IQ7
+  if (HOA_KEYWORDS.some(kw => iq7.includes(kw))) {
+    triggers.push('FU5');
+  }
+
+  // Max 2 follow-ups per interview to control cost/length
+  return triggers.slice(0, 2);
+}
+
+/** Generate follow-up responses in a second turn */
+async function generateFollowUps(
+  apiKey: string,
+  modelId: string,
+  persona: InterviewPersona,
+  originalResponses: Record<string, string>,
+  probeKeys: string[],
+): Promise<FollowUpExchange[]> {
+  if (probeKeys.length === 0) return [];
+
+  const probes = probeKeys
+    .map(k => FOLLOW_UP_PROBES[k])
+    .filter(Boolean);
+
+  const questionBlock = probes
+    .map((p, i) => `Follow-up ${i + 1}: ${p.question}`)
+    .join('\n\n');
+
+  const contextBlock = `Your earlier answers for context:
+IQ6 (Product Reaction): ${originalResponses.IQ6 || '[No response]'}
+IQ7 (Barriers & Drivers): ${originalResponses.IQ7 || '[No response]'}`;
+
+  const system = buildPersonaSystemPrompt(persona);
+  const user = `The interviewer has follow-up questions based on your earlier responses. Answer each as your persona — stay consistent with what you said before but go deeper.
+
+${contextBlock}
+
+${questionBlock}
+
+Return a JSON object with keys ${probeKeys.map(k => `"${k}"`).join(', ')}. Each value is your 3-5 sentence response.`;
+
+  const result = await callOpenRouterWithUsage(apiKey, modelId, system, user, {
+    temperature: 0.8,
+    maxTokens: 1500,
+  });
+
+  trackUsage(modelId, result.usage);
+
+  const parsed = parseJsonResponse<Record<string, string>>(result.content);
+
+  return probeKeys.map(k => {
+    const probe = FOLLOW_UP_PROBES[k];
+    return {
+      probe_key: k as FollowUpExchange['probe_key'],
+      trigger: probe.trigger,
+      question: probe.question,
+      response: typeof parsed[k] === 'string' && parsed[k].trim().length > 0
+        ? parsed[k]
+        : '[No response]',
+    };
+  });
+}
+
 interface GeneratedInterview {
   interviewId: string;
   modelId: string;
   modelLabel: string;
   persona: InterviewPersona;
   responses: Record<string, string>;
+  followUps: FollowUpExchange[];
 }
 
 async function generateInterview(
@@ -165,6 +264,7 @@ async function generateInterview(
   modelId: string,
   persona: InterviewPersona,
 ): Promise<GeneratedInterview> {
+  // Turn 1: Core interview questions
   const result = await callOpenRouterWithUsage(
     apiKey,
     modelId,
@@ -179,12 +279,25 @@ async function generateInterview(
   const responses = validateResponses(parsed);
   const modelLabel = MODEL_LABELS[modelId];
 
+  // Turn 2: Conditional follow-up probes based on IQ6/IQ7 content
+  const probeKeys = detectFollowUpTriggers(responses);
+  let followUps: FollowUpExchange[] = [];
+  if (probeKeys.length > 0) {
+    try {
+      followUps = await generateFollowUps(apiKey, modelId, persona, responses, probeKeys);
+    } catch {
+      // Non-fatal: follow-ups are additive, don't fail the interview
+      followUps = [];
+    }
+  }
+
   return {
     interviewId: `${persona.persona_id}_${modelLabel}`,
     modelId,
     modelLabel,
     persona,
     responses,
+    followUps,
   };
 }
 
@@ -360,7 +473,7 @@ export async function runStage2(
     const modelId = getModelForPersona(i);
     const interview = await generateInterview(apiKey, modelId, persona);
 
-    // Persist to Supabase
+    // Persist to Supabase (include follow-ups in the record)
     await supabase.from('interview_transcripts').insert({
       run_id: runId,
       interview_id: interview.interviewId,
@@ -377,15 +490,19 @@ export async function runStage2(
         hoa_status: interview.persona.hoa_status,
       },
       responses: interview.responses,
+      follow_ups: interview.followUps.length > 0 ? interview.followUps : null,
     });
 
     interviewsCompleted++;
+    const fuNote = interview.followUps.length > 0
+      ? ` + ${interview.followUps.length} follow-up${interview.followUps.length > 1 ? 's' : ''}`
+      : '';
     const pct = Math.round((interviewsCompleted / totalInterviews) * 60);
     await updateProgress(
       supabase,
       runId,
       pct,
-      `Interview ${interviewsCompleted}/${totalInterviews} (${interview.modelLabel} — ${interview.persona.name})`,
+      `Interview ${interviewsCompleted}/${totalInterviews} (${interview.modelLabel} — ${interview.persona.name}${fuNote})`,
     );
 
     allInterviews.push(interview);
