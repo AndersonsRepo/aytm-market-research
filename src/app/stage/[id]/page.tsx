@@ -99,11 +99,39 @@ export default function StageDetailPage() {
         {StageContent}
       </div>
 
-      {/* Run info footer */}
-      <div className="mt-6 text-center">
+      {/* Prev / Next Navigation */}
+      <div className="mt-6 flex items-center justify-between">
+        {stageId > 1 ? (
+          <Link
+            href={`/stage/${stageId - 1}?runId=${runId}`}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors text-sm font-medium"
+          >
+            <span>&larr;</span>
+            <span>Stage {stageId - 1}: {STAGE_META[stageId - 1]?.name}</span>
+          </Link>
+        ) : <div />}
+
         <span className="text-xs text-gray-600 font-mono">
           Run: {runId.slice(0, 8)}...
         </span>
+
+        {stageId < 6 ? (
+          <Link
+            href={`/stage/${stageId + 1}?runId=${runId}`}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors text-sm font-medium"
+          >
+            <span>Stage {stageId + 1}: {STAGE_META[stageId + 1]?.name}</span>
+            <span>&rarr;</span>
+          </Link>
+        ) : (
+          <Link
+            href="/"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-700 text-white hover:bg-green-600 transition-colors text-sm font-medium"
+          >
+            <span>Back to Pipeline</span>
+            <span>&rarr;</span>
+          </Link>
+        )}
       </div>
     </div>
   );

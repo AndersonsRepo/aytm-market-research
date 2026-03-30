@@ -128,6 +128,41 @@ export function Stage4Responses({ runId }: { runId: string }) {
     return counts;
   }, [responses]);
 
+  // ── Box plot data (Q1 Purchase Interest by Segment) ──
+  const boxPlotData = useMemo(() => {
+    return segments.map(seg => {
+      const segResponses = responses.filter(r => r.segment_name === seg);
+      const vals = segResponses.map(r => getNum(r.responses, "Q1")).filter((v): v is number => v != null).sort((a, b) => a - b);
+      if (vals.length === 0) return { segment: seg, min: 0, q1: 0, median: 0, q3: 0, max: 0, n: 0 };
+      const n = vals.length;
+      return {
+        segment: seg.length > 18 ? seg.slice(0, 16) + "…" : seg,
+        min: vals[0],
+        q1: vals[Math.floor(n * 0.25)],
+        median: n % 2 === 0 ? (vals[n / 2 - 1] + vals[n / 2]) / 2 : vals[Math.floor(n / 2)],
+        q3: vals[Math.floor(n * 0.75)],
+        max: vals[n - 1],
+        n,
+      };
+    });
+  }, [responses, segments]);
+
+  // ── Overall means for key headline ──
+  const overallQ1 = useMemo(() => {
+    const vals = responses.map(r => getNum(r.responses, "Q1")).filter((v): v is number => v != null);
+    return vals.length > 0 ? +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : 0;
+  }, [responses]);
+
+  const topBarrier = useMemo(() => {
+    const barrierTotals: Record<string, number> = {};
+    Object.keys(BARRIER_KEYS).forEach(key => {
+      const vals = responses.map(r => getNum(r.responses, key)).filter((v): v is number => v != null);
+      barrierTotals[BARRIER_KEYS[key]] = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    });
+    const sorted = Object.entries(barrierTotals).sort((a, b) => b[1] - a[1]);
+    return sorted[0] ? { name: sorted[0][0], mean: sorted[0][1].toFixed(2) } : null;
+  }, [responses]);
+
   if (loading) return <LoadingSpinner />;
 
   const maxModel = Math.max(...Object.values(modelCounts), 1);
@@ -135,11 +170,12 @@ export function Stage4Responses({ runId }: { runId: string }) {
   return (
     <div className="space-y-6">
       {/* ── Overview Stats ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard label="Total Respondents" value={responses.length} />
         <StatCard label="Segments" value={segments.length} />
         <StatCard label="Models Used" value={models.length} />
-        <StatCard label="Per Segment" value={segments.length > 0 ? Math.round(responses.length / segments.length) : 0} />
+        <StatCard label="Avg Purchase Interest" value={overallQ1} sub="(1-5 Likert)" />
+        <StatCard label="Top Barrier" value={topBarrier?.name || "—"} sub={topBarrier ? `mean: ${topBarrier.mean}` : ""} />
       </div>
 
       {/* ── Purchase Interest by Segment ── */}
@@ -159,6 +195,67 @@ export function Stage4Responses({ runId }: { runId: string }) {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* ── Purchase Interest Distribution (Box Plot) ── */}
+      {boxPlotData.length > 0 && (
+        <div>
+          <SectionHeader>Purchase Interest Distribution by Segment (Q1)</SectionHeader>
+          <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+            <div className="space-y-3">
+              {boxPlotData.map((d, i) => {
+                const range = 5;
+                const pctMin = ((d.min - 1) / (range - 1)) * 100;
+                const pctQ1 = ((d.q1 - 1) / (range - 1)) * 100;
+                const pctMedian = ((d.median - 1) / (range - 1)) * 100;
+                const pctQ3 = ((d.q3 - 1) / (range - 1)) * 100;
+                const pctMax = ((d.max - 1) / (range - 1)) * 100;
+                return (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-400 w-32 truncate text-right">{d.segment}</span>
+                    <div className="flex-1 relative h-8">
+                      {/* Scale labels */}
+                      <div className="absolute inset-0 flex justify-between items-end pb-0">
+                        {[1, 2, 3, 4, 5].map(v => (
+                          <span key={v} className="text-[9px] text-gray-700 w-0 text-center">{v}</span>
+                        ))}
+                      </div>
+                      {/* Track */}
+                      <div className="absolute top-2.5 left-0 right-0 h-0.5 bg-gray-700 rounded" />
+                      {/* Whiskers (min to Q1, Q3 to max) */}
+                      <div className="absolute top-1 h-3" style={{ left: `${pctMin}%`, width: `${pctQ1 - pctMin}%`, borderLeft: "1px solid #6b7280", borderTop: "1px solid transparent", borderBottom: "1px solid transparent" }}>
+                        <div className="absolute top-1/2 left-0 right-0 h-px bg-gray-600" />
+                      </div>
+                      <div className="absolute top-1 h-3" style={{ left: `${pctQ3}%`, width: `${pctMax - pctQ3}%`, borderRight: "1px solid #6b7280" }}>
+                        <div className="absolute top-1/2 left-0 right-0 h-px bg-gray-600" />
+                      </div>
+                      {/* IQR box */}
+                      <div
+                        className="absolute top-0.5 h-4 rounded border border-blue-500/60"
+                        style={{
+                          left: `${pctQ1}%`,
+                          width: `${Math.max(pctQ3 - pctQ1, 1)}%`,
+                          backgroundColor: `${SEGMENT_COLORS[i % SEGMENT_COLORS.length]}33`,
+                        }}
+                      />
+                      {/* Median line */}
+                      <div
+                        className="absolute top-0 h-5 w-0.5 bg-white rounded"
+                        style={{ left: `${pctMedian}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-gray-500 font-mono w-8 text-right">n={d.n}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-between mt-2 px-32 text-[9px] text-gray-600">
+              <span>1 (Not interested)</span>
+              <span>3 (Neutral)</span>
+              <span>5 (Extremely)</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Charts Row: Barriers + Concept Appeal ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

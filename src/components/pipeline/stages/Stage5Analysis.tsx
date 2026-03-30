@@ -7,7 +7,7 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { SectionHeader, StatCard, LoadingSpinner } from "../ui";
+import { SectionHeader, StatCard, LoadingSpinner, Tag } from "../ui";
 
 const MODEL_COLORS = ["#3b82f6", "#22c55e", "#f59e0b"];
 const KEY_VARS = ["Q1", "Q2", "Q7", "Q0b", "Q5_cost", "Q5_hoa", "Q5_permit"];
@@ -77,11 +77,181 @@ export function Stage5Analysis({ runId }: { runId: string }) {
     { name: "Fail", value: 100 - Math.round(attentionRate * 100) },
   ] : null;
 
+  // ── Executive Summary Data ──
+  const stampReliability = useMemo(() => {
+    const items = byType["inter_llm_reliability"] || [];
+    if (items.length === 0) return null;
+    const r = items[0].results;
+    return {
+      alpha: r.overall_alpha as number,
+      interpretation: r.overall_interpretation as string,
+      passes: r.passes_stamp_threshold as boolean,
+      models: r.models as string[],
+    };
+  }, [byType]);
+
+  const stampInterpretation = useMemo(() => {
+    const items = byType["stamp_interpretation_agreement"] || [];
+    if (items.length === 0) return null;
+    const r = items[0].results;
+    if (r.status === "failed") return null;
+    return {
+      agreementRate: r.agreement_rate as number,
+      unanimousFields: r.unanimous_fields as number,
+      totalFields: r.total_fields as number,
+      alpha: r.interpretation_alpha as number,
+      passes: r.passes_stamp as boolean,
+    };
+  }, [byType]);
+
+  const benchmarkData = useMemo(() => {
+    const items = byType["benchmark_comparison"] || [];
+    if (items.length === 0) return null;
+    const r = items[0].results;
+    const ks = r.ks_tests as any;
+    if (!ks) return { alignmentScore: null, comparisons: r.comparisons?.length ?? 0 };
+    return {
+      alignmentScore: ks.summary?.overall_alignment_score as number,
+      likertAligned: ks.summary?.likert_aligned as number,
+      likertTests: ks.summary?.likert_tests as number,
+      comparisons: r.comparisons?.length ?? 0,
+    };
+  }, [byType]);
+
+  const disagreementData = useMemo(() => {
+    const items = byType["disagreement_analysis"] || [];
+    if (items.length === 0) return null;
+    const r = items[0].results;
+    return {
+      total: r.total_variables as number,
+      divergent: r.variables_with_disagreement as number,
+      top: (r.disagreements as any[])?.[0] ?? null,
+    };
+  }, [byType]);
+
+  const stampEmotion = useMemo(() => {
+    const items = byType["stamp_emotion_classification"] || [];
+    if (items.length === 0) return null;
+    const r = items[0].results;
+    return {
+      alpha: r.emotion_alpha as number,
+      passes: r.emotion_passes_stamp as boolean,
+      unanimousRate: r.unanimous_rate as number,
+    };
+  }, [byType]);
+
   if (loading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-6">
-      {/* Overview */}
+      {/* ── Executive Summary ── */}
+      <div className="bg-gradient-to-r from-blue-950/40 to-purple-950/40 border border-blue-800/40 rounded-xl p-5">
+        <h3 className="text-lg font-bold text-white mb-1">Executive Summary</h3>
+        <p className="text-xs text-gray-400 mb-4">Key findings from {Object.keys(byType).length} analysis types across {crossTab?.total_respondents ?? "N"} synthetic respondents</p>
+
+        {/* STAMP Reliability Badges */}
+        <div className="flex flex-wrap gap-3 mb-4">
+          {stampReliability && (
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${stampReliability.passes ? "bg-green-950/30 border-green-800/50" : "bg-yellow-950/30 border-yellow-800/50"}`}>
+              <span className={`text-lg font-bold font-mono ${stampReliability.passes ? "text-green-400" : "text-yellow-400"}`}>
+                {"\u03B1"} = {stampReliability.alpha.toFixed(3)}
+              </span>
+              <div className="text-xs">
+                <div className={`font-semibold ${stampReliability.passes ? "text-green-300" : "text-yellow-300"}`}>
+                  STAMP Survey Reliability
+                </div>
+                <div className="text-gray-400">{stampReliability.interpretation} ({stampReliability.passes ? "passes" : "below"} {"\u2265"}0.667 threshold)</div>
+              </div>
+            </div>
+          )}
+
+          {stampEmotion && (
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${stampEmotion.passes ? "bg-green-950/30 border-green-800/50" : "bg-yellow-950/30 border-yellow-800/50"}`}>
+              <span className={`text-lg font-bold font-mono ${stampEmotion.passes ? "text-green-400" : "text-yellow-400"}`}>
+                {"\u03B1"} = {stampEmotion.alpha.toFixed(3)}
+              </span>
+              <div className="text-xs">
+                <div className={`font-semibold ${stampEmotion.passes ? "text-green-300" : "text-yellow-300"}`}>
+                  STAMP Emotion Classification
+                </div>
+                <div className="text-gray-400">{stampEmotion.unanimousRate}% unanimous across 3 models</div>
+              </div>
+            </div>
+          )}
+
+          {stampInterpretation && (
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${stampInterpretation.passes ? "bg-green-950/30 border-green-800/50" : "bg-yellow-950/30 border-yellow-800/50"}`}>
+              <span className={`text-lg font-bold font-mono ${stampInterpretation.passes ? "text-green-400" : "text-yellow-400"}`}>
+                {stampInterpretation.agreementRate}%
+              </span>
+              <div className="text-xs">
+                <div className={`font-semibold ${stampInterpretation.passes ? "text-green-300" : "text-yellow-300"}`}>
+                  STAMP Interpretation Agreement
+                </div>
+                <div className="text-gray-400">{stampInterpretation.unanimousFields}/{stampInterpretation.totalFields} fields unanimous</div>
+              </div>
+            </div>
+          )}
+
+          {benchmarkData?.alignmentScore != null && (
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${benchmarkData.alignmentScore >= 70 ? "bg-green-950/30 border-green-800/50" : benchmarkData.alignmentScore >= 50 ? "bg-yellow-950/30 border-yellow-800/50" : "bg-red-950/30 border-red-800/50"}`}>
+              <span className={`text-lg font-bold font-mono ${benchmarkData.alignmentScore >= 70 ? "text-green-400" : benchmarkData.alignmentScore >= 50 ? "text-yellow-400" : "text-red-400"}`}>
+                {benchmarkData.alignmentScore.toFixed(0)}%
+              </span>
+              <div className="text-xs">
+                <div className={`font-semibold ${benchmarkData.alignmentScore >= 70 ? "text-green-300" : "text-yellow-300"}`}>
+                  Benchmark Alignment (KS Test)
+                </div>
+                <div className="text-gray-400">{benchmarkData.likertAligned}/{benchmarkData.likertTests} distributions align with real survey (N=600)</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Key Findings */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-semibold text-gray-300">Key Findings</h4>
+          <ul className="space-y-1.5 text-sm text-gray-300">
+            {stampReliability && (
+              <li className="flex items-start gap-2">
+                <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${stampReliability.passes ? "bg-green-500" : "bg-yellow-500"}`} />
+                <span>
+                  Three independent LLMs show <strong className="text-white">{stampReliability.interpretation}</strong> agreement on survey responses
+                  ({stampReliability.models?.length || 3} models, Krippendorff&apos;s {"\u03B1"} = {stampReliability.alpha.toFixed(3)})
+                </span>
+              </li>
+            )}
+            {benchmarkData?.alignmentScore != null && (
+              <li className="flex items-start gap-2">
+                <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${benchmarkData.alignmentScore >= 70 ? "bg-green-500" : "bg-yellow-500"}`} />
+                <span>
+                  Synthetic data <strong className="text-white">{benchmarkData.alignmentScore >= 70 ? "statistically aligns" : "partially aligns"}</strong> with
+                  real aytm survey (N=600) — {benchmarkData.likertAligned} of {benchmarkData.likertTests} KS tests pass at p{"\u2265"}0.05
+                </span>
+              </li>
+            )}
+            {disagreementData && disagreementData.divergent > 0 && (
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 w-2 h-2 rounded-full flex-shrink-0 bg-yellow-500" />
+                <span>
+                  Models diverge on <strong className="text-white">{disagreementData.divergent} of {disagreementData.total}</strong> variables
+                  {disagreementData.top && <> — strongest disagreement on <em>{disagreementData.top.label || disagreementData.top.variable}</em> ({"\u0394"}{(disagreementData.top.max_difference as number).toFixed(2)})</>}
+                </span>
+              </li>
+            )}
+            {disagreementData && disagreementData.divergent === 0 && (
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 w-2 h-2 rounded-full flex-shrink-0 bg-green-500" />
+                <span>
+                  All three models <strong className="text-white">converge</strong> across all {disagreementData.total} measured variables (no significant disagreements)
+                </span>
+              </li>
+            )}
+          </ul>
+        </div>
+      </div>
+
+      {/* Overview Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Analysis Types" value={Object.keys(byType).length} />
         <StatCard label="Total Results" value={results.length} />
