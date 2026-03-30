@@ -473,8 +473,8 @@ export async function runStage2(
     const modelId = getModelForPersona(i);
     const interview = await generateInterview(apiKey, modelId, persona);
 
-    // Persist to Supabase (include follow-ups in the record)
-    await supabase.from('interview_transcripts').insert({
+    // Persist to Supabase (include follow-ups if column exists)
+    const transcriptRow: Record<string, unknown> = {
       run_id: runId,
       interview_id: interview.interviewId,
       model: interview.modelLabel,
@@ -491,7 +491,13 @@ export async function runStage2(
       },
       responses: interview.responses,
       follow_ups: interview.followUps.length > 0 ? interview.followUps : null,
-    });
+    };
+    const { error: insertErr } = await supabase.from('interview_transcripts').insert(transcriptRow);
+    if (insertErr?.code === '42703') {
+      // follow_ups column doesn't exist yet — retry without it
+      delete transcriptRow.follow_ups;
+      await supabase.from('interview_transcripts').insert(transcriptRow);
+    }
 
     interviewsCompleted++;
     const fuNote = interview.followUps.length > 0

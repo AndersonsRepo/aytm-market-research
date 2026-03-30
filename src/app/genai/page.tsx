@@ -183,13 +183,14 @@ export default function GenAIDocumentationPage() {
           <StageCard
             stage={2}
             title="Depth Interviews"
-            badge="30 interviews + STAMP"
+            badge="30 interviews + multi-turn"
             badgeColor="blue"
-            description="30 simulated depth interviews (10 personas × 3 models) with 8 core questions plus adaptive follow-ups."
+            description="30 simulated depth interviews (10 personas × 3 models) with 8 core questions plus multi-turn adaptive follow-ups."
             details={[
+              "Multi-turn follow-ups: pipeline detects triggers in IQ6/IQ7 (cost, enthusiasm, skepticism, space, HOA) and fires up to 2 targeted follow-up probes per interview",
+              "Follow-up probes test financing sensitivity ($350/mo framing), purchase timeline, trust barriers, unit sizing flexibility, and HOA concierge service appeal",
               "STAMP emotion classification: all 3 models independently classify each interview using codebook prompts with boundary cases, measured via Krippendorff's α",
               "STAMP theme extraction: all 3 models independently extract themes, measured via Jaccard similarity",
-              "Majority-vote consensus determines final emotion per interview",
             ]}
           />
           <StageCard
@@ -219,13 +220,15 @@ export default function GenAIDocumentationPage() {
           <StageCard
             stage={5}
             title="Statistical Analysis"
-            badge="Computation + STAMP"
+            badge="Computation + STAMP + KS Tests"
             badgeColor="blue"
-            description="Deterministic statistical tests plus STAMP interpretation agreement — 3 models independently classify the aggregate survey data."
+            description="Deterministic statistical tests, STAMP interpretation agreement, and formal benchmark validation via Kolmogorov-Smirnov tests."
             details={[
-              "Mann-Whitney U, Kruskal-Wallis H, bootstrap CIs (deterministic)",
+              "Mann-Whitney U, Kruskal-Wallis H, bootstrap CIs (deterministic, hand-coded TypeScript)",
               "Krippendorff's α for response-level inter-LLM reliability",
-              "STAMP interpretation agreement: 3 models classify the same dataset (dominant barrier, primary use case, purchase intent, best segment, market readiness) — true classification task where α applies",
+              "STAMP interpretation agreement: 3 models classify the same dataset (dominant barrier, primary use case, purchase intent, best segment, market readiness)",
+              "KS tests: two-sample Kolmogorov-Smirnov tests compare synthetic distributions against real aytm survey (N=600) with p-value significance testing",
+              "Barrier severity top-2-box comparison and overall alignment score quantify synthetic-to-real calibration",
             ]}
           />
           <StageCard
@@ -255,7 +258,7 @@ export default function GenAIDocumentationPage() {
               {
                 stage: "Stage 2 — Interviews",
                 description:
-                  "Persona-grounded interview simulation with detailed demographic and psychographic profiles. 8 core questions with adaptive follow-ups based on prior answers.",
+                  "Persona-grounded interview simulation with detailed demographic and psychographic profiles. 8 core questions in Turn 1, then keyword-triggered follow-up probes in Turn 2 (cost sensitivity, enthusiasm, skepticism, space constraints, HOA concerns).",
                 temp: "0.8",
               },
               {
@@ -316,9 +319,10 @@ export default function GenAIDocumentationPage() {
                 Statistical Implementations
               </h3>
               <p className="text-sm text-gray-400">
-                Mann-Whitney U, Kruskal-Wallis H, bootstrap CIs, and
-                Krippendorff&apos;s alpha — hand-coded in TypeScript without
-                external statistical libraries.
+                Mann-Whitney U, Kruskal-Wallis H, bootstrap CIs,
+                Krippendorff&apos;s alpha, Kolmogorov-Smirnov two-sample test,
+                and chi-squared survival function (Lanczos approximation) — all
+                hand-coded in TypeScript without external statistical libraries.
               </p>
             </div>
             <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5">
@@ -363,7 +367,96 @@ export default function GenAIDocumentationPage() {
           </div>
         </Section>
 
-        {/* Section 5: Responsible AI */}
+        {/* Section 5: Synthetic vs Traditional Research */}
+        <Section title="How This Compares to Traditional Research">
+          <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-6 mb-4">
+            <p className="text-sm text-gray-400 mb-5">
+              This pipeline doesn&apos;t replace traditional market research — it
+              augments the early exploration phase. Here&apos;s how it compares:
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-700">
+                    <th className="text-left py-2 pr-4 text-gray-400 font-medium w-1/4">Dimension</th>
+                    <th className="text-left py-2 px-4 text-gray-400 font-medium w-1/4">Traditional (aytm)</th>
+                    <th className="text-left py-2 px-4 text-blue-400 font-medium w-1/4">This Pipeline</th>
+                    <th className="text-left py-2 pl-4 text-gray-400 font-medium w-1/4">Trade-off</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ["Cost", "$5,000–$50,000", "~$0.50 per run", "100× cheaper but synthetic"],
+                    ["Time", "2–6 weeks", "5–10 minutes", "Instant iteration, no recruitment"],
+                    ["Sample size", "N=600 (real)", "N=90 (synthetic)", "Smaller but triangulated across 3 LLMs"],
+                    ["Depth interviews", "60 min, $150–$300 each", "30 interviews in ~3 min", "Adaptive follow-ups simulate probing"],
+                    ["Bias control", "Screener questions, quotas", "Sycophancy reduction, skeptical seeds", "Different bias profiles"],
+                    ["Validation", "Panel quality metrics", "KS tests vs real N=600 benchmark", "Self-calibrating against real data"],
+                    ["Best for", "Final decisions", "Hypothesis generation & exploration", "Use before committing budget"],
+                  ].map(([dim, trad, ours, tradeoff], i) => (
+                    <tr key={i} className="border-b border-gray-800">
+                      <td className="py-2.5 pr-4 text-gray-200 font-medium">{dim}</td>
+                      <td className="py-2.5 px-4 text-gray-400">{trad}</td>
+                      <td className="py-2.5 px-4 text-blue-300">{ours}</td>
+                      <td className="py-2.5 pl-4 text-gray-500 text-xs">{tradeoff}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </Section>
+
+        {/* Section 6: Pipeline Architecture */}
+        <Section title="Pipeline Architecture">
+          <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-6">
+            <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-mono">
+              {[
+                { label: "Client Discovery", color: "bg-blue-600" },
+                { label: "Depth Interviews", color: "bg-blue-600" },
+                { label: "Survey Design", color: "bg-blue-600" },
+                { label: "Survey Responses", color: "bg-blue-600" },
+                { label: "Analysis", color: "bg-purple-600" },
+                { label: "Validation", color: "bg-gray-600" },
+              ].map((stage, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className={`${stage.color} text-white px-3 py-1.5 rounded-lg`}>
+                    {i + 1}. {stage.label}
+                  </div>
+                  {i < 5 && <span className="text-gray-600">&rarr;</span>}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-4 mt-6 text-center">
+              <div className="bg-blue-950/30 border border-blue-800/30 rounded-lg p-3">
+                <div className="text-xs text-blue-400 font-semibold mb-1">AI-Generated</div>
+                <div className="text-xs text-gray-400">Stages 1–5: LLM calls via OpenRouter</div>
+              </div>
+              <div className="bg-purple-950/30 border border-purple-800/30 rounded-lg p-3">
+                <div className="text-xs text-purple-400 font-semibold mb-1">Hybrid</div>
+                <div className="text-xs text-gray-400">Stage 5: Deterministic stats + STAMP classification</div>
+              </div>
+              <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-3">
+                <div className="text-xs text-gray-400 font-semibold mb-1">Pure Computation</div>
+                <div className="text-xs text-gray-400">Stage 6: No AI — bias detection, scoring</div>
+              </div>
+            </div>
+            <div className="mt-6 bg-gray-800/40 rounded-lg p-4">
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                Data Flow
+              </h4>
+              <p className="text-sm text-gray-400">
+                Each stage persists results to <strong className="text-gray-300">Supabase PostgreSQL</strong> via server-side API routes.
+                The frontend subscribes to <strong className="text-gray-300">Supabase Realtime</strong> for live progress updates.
+                All LLM calls go through <strong className="text-gray-300">OpenRouter</strong> with per-model round-robin assignment
+                (10 personas per model in Stage 2, balanced segment allocation in Stage 4).
+                Statistical tests in Stage 5 are <strong className="text-gray-300">pure TypeScript</strong> — no external stats libraries.
+              </p>
+            </div>
+          </div>
+        </Section>
+
+        {/* Section 7: Responsible AI */}
         <Section title="Responsible AI Statement">
           <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-6">
             <p className="text-sm text-gray-300 mb-4">
