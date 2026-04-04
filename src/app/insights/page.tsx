@@ -82,6 +82,40 @@ export default function InsightsPage() {
           </div>
         </div>
 
+        {/* Benchmark Scorecard */}
+        <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-6 mb-10">
+          <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+            <span className="w-1.5 h-6 bg-emerald-500 rounded-full inline-block" />
+            Benchmark Scorecard — 5 Key Questions
+          </h2>
+          <p className="text-xs text-gray-500 mb-4">Synthetic pipeline vs. real aytm survey (N=600 US homeowners). Target: within &plusmn;5pp.</p>
+          <div className="space-y-3">
+            {[
+              { q: "Q1: Purchase Interest at $23K", metric: "Mean", real: "2.34", target: "~2.34", note: "Left-skewed: 58% rate 1-2" },
+              { q: "Q3: Primary Use Case", metric: "#1 Rank", real: "Storage (26.7%)", target: "Storage #1", note: "LLM bias test: home office is NOT #1" },
+              { q: "Q6: Greatest Barrier", metric: "Top Answer", real: "Cost (59.7%)", target: "Cost ~60%", note: "Dominates all other barriers combined" },
+              { q: "Q14: Most Motivating Concept", metric: "Top Answer", real: "None (24.0%)", target: "'None' ~24%", note: "Real consumers often unmotivated at $23K" },
+              { q: "Q5_cost: Cost Barrier Severity", metric: "Top-2-Box", real: "65.7%", target: "~66%", note: "% rating cost barrier 4 or 5 out of 5" },
+            ].map((row, i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3 bg-gray-800/40 border border-gray-700/50 rounded-lg">
+                <span className="text-xs font-mono text-gray-500 w-6">{i + 1}</span>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-white">{row.q}</div>
+                  <div className="text-xs text-gray-500">{row.note}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-gray-400">{row.metric}</div>
+                  <div className="text-sm font-mono text-emerald-400 font-bold">{row.real}</div>
+                </div>
+                <div className="text-right border-l border-gray-700 pl-4">
+                  <div className="text-xs text-gray-400">Target</div>
+                  <div className="text-sm font-mono text-blue-400">{row.target}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Finding 1: Cost Barrier */}
         <Section title="Finding 1: Cost Is the Dominant Barrier">
           <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-6 mb-4">

@@ -201,17 +201,42 @@ Let the answers to those questions drive every rating. A prediction that default
 
 CRITICAL: Do NOT default to 3 (neutral/moderate) as a safe choice. Real consumers have opinions — they either want something or they don't. A response pattern with many 3s is unrealistic. Most responses should be 1-2 (disinterested/negative) or 4-5 (interested/positive), not clustered at the midpoint. Midpoint responses (3) should be the EXCEPTION, not the default.
 
-CALIBRATION ANCHORS (based on real consumer data for $20K+ home products):
-- Purchase interest for novel backyard structures: most consumers rate 1-2 (uninterested). Only 20-25% rate 4-5.
-- Cost is the #1 barrier for 55-65% of consumers.
-- "None of the above" is the most common concept preference (20-25% of respondents choose this).
+CALIBRATION ANCHORS (based on real consumer research for backyard structures, N=600 US homeowners):
+- Purchase interest at $23K: mean = 2.34 on 1-5 scale. 58% rate 1-2, only 23% rate 4-5. Most homeowners are NOT interested at this price.
+- Purchase likelihood in 24 months: mean = 2.05. Even lower than interest. 68% rate 1-2.
+- Cost is the #1 barrier for ~60% of consumers. It dominates all other barriers combined.
+- Primary use case: Storage/premium shed is #1 (27%), then home office (18%), then wellness (15%). LLMs over-predict "home office" — real homeowners think practically about storage needs first.
+- "None of the above" is the MOST COMMON concept preference — 24% choose it. Real consumers are often unmotivated by any product framing at $23K.
 - Use the full 1-5 scale. A realistic respondent has some strong opinions (1 or 5) and some moderate ones (2 or 4), but rarely rates everything at the midpoint.
+
+STAMP CODEBOOK — QUESTION-SPECIFIC GUIDANCE:
+
+Q1 (Purchase Interest at $23K):
+- DEFINITION: How interested would this consumer be in purchasing a $23K prefabricated backyard structure?
+- BOUNDARY: A consumer earning <$100K who has no pressing space need should rate 1-2. A consumer earning $150K+ with a clear use case might rate 3-4. Only someone with urgent need, high income, AND enthusiasm rates 5.
+- EXCLUSION: Do NOT assume interest just because the consumer has a backyard. Most homeowners have many competing priorities.
+- ANCHOR: The average real consumer rates 2.34. Only 7% rate 5.
+
+Q3 (Primary Use Case):
+- DEFINITION: If this consumer could add a ~120 sq ft private backyard space, what would they MOST LIKELY use it for?
+- BOUNDARY: "General storage / premium speed shed" is the most common answer (27%) because most homeowners have practical storage overflow (tools, seasonal items, equipment) before they have aspirational needs. "Home office" is #2 (18%) — only choose this if the consumer works from home and explicitly lacks workspace.
+- EXCLUSION: Do NOT default to "home office" because it sounds modern or aspirational. Real homeowners think about cluttered garages and full closets before they think about Instagram-worthy offices.
+
+Q6 (Greatest Single Barrier):
+- DEFINITION: What is the SINGLE biggest factor that would prevent this consumer from purchasing?
+- BOUNDARY: "The total cost (~$23,000)" is the correct answer for ~60% of consumers — anyone who considers $23K a significant financial commitment. Even high-income consumers often cite cost because they compare it to other home investments.
+- EXCLUSION: Only choose a non-cost barrier if this consumer has a SPECIFIC reason: active HOA conflict, genuinely tiny yard (<200 sqft), or existing structure that makes a new one redundant.
+
+Q14 (Most Motivating Concept):
+- DEFINITION: Which ONE concept framing would most motivate this consumer to learn more?
+- BOUNDARY: "None of the above" is the correct choice for ~24% of consumers — those who are genuinely uninterested at $23K regardless of framing. This includes most people who rated Q1 as 1-2.
+- EXCLUSION: Do NOT always pick a concept just to be helpful. A consumer who rated purchase interest 1-2 should often choose "None of the above."
 
 RESPONSE RULES:
 1. Every rating must be justified by the consumer's profile. Enthusiasm and skepticism are both valid — the profile determines which.
-2. For Q6 (greatest barrier): this person's specific situation (income, HOA, property type, risk tolerance) determines their primary barrier. Cost is one of many — permits, space, trust, HOA, and "I just don't need this" are equally common.
-3. For Q14 (best concept): choose based on this person's actual lifestyle, or "None of the above" if no concept is compelling at this price point for this person.
-4. $23,000 is a significant purchase. Consider what else this person could spend that money on.
+2. For Q6 (greatest barrier): Cost dominates. Unless this consumer has a specific non-cost barrier (active HOA issue, tiny yard), choose cost.
+3. For Q14 (best concept): If Q1 was 1-2, strongly consider "None of the above." Only choose a concept if this consumer has a clear lifestyle match.
+4. $23,000 is a significant purchase. Most consumers compare it to kitchen renovations, used cars, emergency funds, or paying down debt.
 5. Demographic answers (Q21-Q26) MUST match the consumer profile above exactly.
 6. Q30 (attention check) MUST be 3.
 7. Return ONLY a single JSON object with the exact keys specified. No explanations, no markdown.`;
@@ -226,9 +251,10 @@ Return a JSON object with exactly these keys and valid values:
 ${RESPONSE_SCHEMA}
 
 RESPONSE GUIDANCE:
-- For Q3 (use case): pick the ONE use case most relevant to this person's actual lifestyle. If none fit well, pick the closest match.
-- For Q6 (greatest barrier): choose the barrier driven by this person's specific circumstances — financial, regulatory, practical, or attitudinal.
-- For Q14 (best concept): choose based on this person's needs, or "None of the above" if this person would not commit at this price point.
+- For Q3 (use case): Think about this consumer's PRACTICAL needs first. Most homeowners need extra storage (cluttered garages, seasonal items, tools) before they need an office or wellness space. Only choose "home office" if this person works remotely and genuinely lacks workspace. Choose "general storage / premium speed shed" if this person has any accumulation of tools, outdoor gear, hobby supplies, or general overflow.
+- For Q6 (greatest barrier): Cost ($23K) is the barrier for ~60% of real consumers. Unless this person has a SPECIFIC competing barrier (active HOA issue, genuinely tiny yard), default to cost.
+- For Q14 (best concept): If this consumer rated Q1 (purchase interest) at 1 or 2, they should strongly lean toward "None of the above" — an uninterested consumer isn't motivated by reframing. Choose a specific concept only if this person has a clear lifestyle match AND rated Q1 at 3+.
+- For Q1/Q2: Most consumers are skeptical. Mean purchase interest in real data is 2.34. Only consumers with high income, clear need, AND enthusiasm should rate 4-5.
 
 DISTRIBUTION CHECK: Before finalizing, verify your responses use the full 1-5 scale. A realistic respondent should have:
 - At least 2-3 responses at 1 or 2 (things they don't care about)
