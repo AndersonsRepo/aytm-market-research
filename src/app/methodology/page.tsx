@@ -227,6 +227,22 @@ export default function MethodologyPage() {
           />
         </Section>
 
+          <TechniqueCard
+            number={6}
+            title="STAMP Codebook Prompts (Per-Question Calibration)"
+            file="stage4.ts → buildSystemPrompt()"
+            impact="Est. −10-20pp"
+            description="Added structured codebook prompts for each of the 5 benchmark questions — definition, boundary cases, exclusion criteria, and calibration anchors. This is the STAMP methodology applied directly: treating prompts as measurement instruments, not casual instructions."
+            details={[
+              'Q1 (Purchase Interest): Anchored to real mean of 2.34 — "only 7% rate 5, most rate 1-2"',
+              'Q3 (Use Case): Storage explicitly documented as #1 (27%) — counters LLM home-office bias from training data',
+              'Q6 (Barrier): Cost set as default for ~60% — "only choose non-cost if specific competing barrier exists"',
+              'Q14 (Concept): "None of the above" linked to Q1 — "if Q1 was 1-2, strongly consider None"',
+              "Each question includes DEFINITION → BOUNDARY → EXCLUSION structure per Dr. Lin's STAMP protocol",
+            ]}
+            citation="Dr. Lin — STAMP: Structured Taxonomy AI Measurement Protocol (2026)"
+          />
+
         {/* Design Principles */}
         <Section title="Design Principles">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -353,9 +369,27 @@ export default function MethodologyPage() {
           </ul>
         </Section>
 
+        {/* See Results */}
+        <Section title="See the Results">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Link href="/benchmark" className="bg-blue-950/30 border border-blue-800/40 rounded-xl p-5 hover:bg-blue-950/50 transition-all group">
+              <h3 className="text-sm font-semibold text-blue-400 mb-1 group-hover:text-blue-300">Benchmark Validation &rarr;</h3>
+              <p className="text-xs text-gray-400">Side-by-side comparison of synthetic vs real data for 5 key questions with pass/fail scorecard.</p>
+            </Link>
+            <Link href="/insights" className="bg-violet-950/30 border border-violet-800/40 rounded-xl p-5 hover:bg-violet-950/50 transition-all group">
+              <h3 className="text-sm font-semibold text-violet-400 mb-1 group-hover:text-violet-300">Key Insights &rarr;</h3>
+              <p className="text-xs text-gray-400">Strategic findings from the pipeline — cost barrier alignment, LLM bias on use cases, and follow-up depth.</p>
+            </Link>
+            <Link href="/deliverables" className="bg-amber-950/30 border border-amber-800/40 rounded-xl p-5 hover:bg-amber-950/50 transition-all group">
+              <h3 className="text-sm font-semibold text-amber-400 mb-1 group-hover:text-amber-300">Deliverables &rarr;</h3>
+              <p className="text-xs text-gray-400">Growth strategy, responsible AI statement, and measurement plan for Neo Smart Living.</p>
+            </Link>
+          </div>
+        </Section>
+
         {/* Footer */}
         <div className="border-t border-gray-800 pt-6 mt-10 text-center text-xs text-gray-600">
-          AYTM × Neo Smart Living — CPP AI Hackathon 2026
+          AYTM &times; Neo Smart Living &mdash; CPP AI Hackathon 2026
         </div>
       </div>
     </main>
