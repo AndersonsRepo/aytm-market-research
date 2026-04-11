@@ -16,7 +16,7 @@ import type {
   BiasDetection,
   ConfidenceInterval,
 } from "@/lib/pipeline/types";
-import { bootstrapCI } from "@/lib/pipeline/stats";
+import { bootstrapCI, chiSquaredSurvival, normalCDF } from "@/lib/pipeline/stats";
 import {
   ALL_NUMERIC_KEYS,
 } from "@/lib/pipeline/constants";
@@ -263,43 +263,66 @@ export async function runStage6(
   }
   const totalLikert = allLikertFlat.length;
 
-  // Central tendency bias: % of responses exactly at midpoint (3)
-  const centralCount = allLikertFlat.filter((v) => v === 3).length;
+  // Observed frequency distribution across 1-5 scale
+  const observed = [0, 0, 0, 0, 0]; // indices 0-4 → values 1-5
+  for (const v of allLikertFlat) {
+    if (v >= 1 && v <= 5) observed[v - 1]++;
+  }
+  // Expected under uniform distribution: each value gets 20%
+  const expectedUniform = totalLikert / 5;
+
+  // Central tendency bias: test if midpoint (3) is over-represented
+  // Chi-squared goodness-of-fit: observed[2] vs expected uniform proportion
+  const centralCount = observed[2];
   const centralPct = totalLikert > 0 ? centralCount / totalLikert : 0;
+  const centralExpected = expectedUniform;
+  const centralChi2 = centralExpected > 0
+    ? (centralCount - centralExpected) ** 2 / centralExpected +
+      ((totalLikert - centralCount) - (totalLikert - centralExpected)) ** 2 / (totalLikert - centralExpected)
+    : 0;
+  const centralPValue = totalLikert > 0 ? chiSquaredSurvival(centralChi2, 1) : 1;
   biasDetection.push({
     test_name: "Central Tendency Bias",
     variable: "all_likert",
     statistic: Math.round(centralPct * 10000) / 100, // as percentage
-    p_value: centralPct > 0.4 ? 0.01 : centralPct > 0.3 ? 0.05 : 0.5,
-    significant: centralPct > 0.3,
+    p_value: round3(centralPValue),
+    significant: centralPValue < 0.05 && centralPct > 0.2,
     effect_size: round3(centralPct),
   });
 
-  // Acquiescence bias: % of responses that are 4 or 5
-  const acquiescenceCount = allLikertFlat.filter((v) => v >= 4).length;
-  const acquiescencePct =
-    totalLikert > 0 ? acquiescenceCount / totalLikert : 0;
+  // Acquiescence bias: test if agree responses (4+5) exceed expected 40%
+  const acquiescenceCount = observed[3] + observed[4];
+  const acquiescencePct = totalLikert > 0 ? acquiescenceCount / totalLikert : 0;
+  const acquiExpected = totalLikert * 0.4; // 2 of 5 values = 40% under uniform
+  const acquiChi2 = acquiExpected > 0
+    ? (acquiescenceCount - acquiExpected) ** 2 / acquiExpected +
+      ((totalLikert - acquiescenceCount) - (totalLikert - acquiExpected)) ** 2 / (totalLikert - acquiExpected)
+    : 0;
+  const acquiPValue = totalLikert > 0 ? chiSquaredSurvival(acquiChi2, 1) : 1;
   biasDetection.push({
     test_name: "Acquiescence Bias",
     variable: "all_likert",
     statistic: Math.round(acquiescencePct * 10000) / 100,
-    p_value:
-      acquiescencePct > 0.6 ? 0.01 : acquiescencePct > 0.5 ? 0.05 : 0.5,
-    significant: acquiescencePct > 0.5,
+    p_value: round3(acquiPValue),
+    significant: acquiPValue < 0.05 && acquiescencePct > 0.4,
     effect_size: round3(acquiescencePct),
   });
 
-  // Extreme response bias: % of responses that are 1 or 5
-  const extremeCount = allLikertFlat.filter(
-    (v) => v === 1 || v === 5
-  ).length;
+  // Extreme response bias: test if extreme values (1 or 5) exceed expected 40%
+  const extremeCount = observed[0] + observed[4];
   const extremePct = totalLikert > 0 ? extremeCount / totalLikert : 0;
+  const extremeExpected = totalLikert * 0.4; // 2 of 5 values = 40% under uniform
+  const extremeChi2 = extremeExpected > 0
+    ? (extremeCount - extremeExpected) ** 2 / extremeExpected +
+      ((totalLikert - extremeCount) - (totalLikert - extremeExpected)) ** 2 / (totalLikert - extremeExpected)
+    : 0;
+  const extremePValue = totalLikert > 0 ? chiSquaredSurvival(extremeChi2, 1) : 1;
   biasDetection.push({
     test_name: "Extreme Response Bias",
     variable: "all_likert",
     statistic: Math.round(extremePct * 10000) / 100,
-    p_value: extremePct > 0.5 ? 0.01 : extremePct > 0.4 ? 0.05 : 0.5,
-    significant: extremePct > 0.4,
+    p_value: round3(extremePValue),
+    significant: extremePValue < 0.05 && extremePct > 0.4,
     effect_size: round3(extremePct),
   });
 
@@ -338,13 +361,20 @@ export async function runStage6(
   }
 
   const avgModelCorr = corrPairs > 0 ? totalCorr / corrPairs : 0;
+  // Fisher z-transform to get p-value for correlation significance
+  // H0: true correlation = 0. Use average n per model pair for df.
+  const avgN = NUMERIC_KEYS.length; // number of variables being correlated
+  const fisherZ = avgN > 3 ? Math.atanh(avgModelCorr) * Math.sqrt(avgN - 3) : 0;
+  // Two-tailed p-value from normal distribution (z-test)
+  const corrPValue = avgN > 3
+    ? round3(2 * (1 - normalCDF(Math.abs(fisherZ))))
+    : 1;
   biasDetection.push({
     test_name: "Model Agreement (Mean Correlation)",
     variable: "model_means",
     statistic: round3(avgModelCorr),
-    p_value:
-      avgModelCorr > 0.95 ? 0.01 : avgModelCorr > 0.9 ? 0.05 : 0.5,
-    significant: avgModelCorr > 0.95,
+    p_value: corrPValue,
+    significant: corrPValue < 0.05,
     effect_size: round3(avgModelCorr),
   });
 

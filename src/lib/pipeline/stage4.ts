@@ -420,26 +420,30 @@ export async function runStage4(
 
   // Collect successful results
   const results: GeneratedResponse[] = [];
-  const errors: string[] = [];
+  const errors: Array<{ respondent: string; error: string }> = [];
   let totalTokens = 0;
   let totalCost = 0;
 
-  for (const r of settled) {
+  for (let i = 0; i < settled.length; i++) {
+    const r = settled[i];
     if (r.status === "fulfilled") {
       results.push(r.value);
       totalTokens += r.value.tokens;
       totalCost += r.value.cost;
     } else {
-      errors.push(
-        r.reason instanceof Error ? r.reason.message : String(r.reason)
-      );
+      const def = taskDefs[i];
+      const respondentId = `S${def.segment.id}_${def.modelLabel}_${def.respondentIndex + 1}`;
+      const errMsg = r.reason instanceof Error ? r.reason.message : String(r.reason);
+      console.error(`Respondent ${respondentId} failed:`, errMsg);
+      errors.push({ respondent: respondentId, error: errMsg });
     }
   }
 
   const minRequired = Math.ceil(totalTasks * 0.75);
   if (results.length < minRequired) {
+    const failedIds = errors.map(e => e.respondent).join(', ');
     throw new Error(
-      `Only ${results.length}/${totalTasks} respondents generated (need ${minRequired}). First error: ${errors[0]}`
+      `Only ${results.length}/${totalTasks} respondents generated (need ${minRequired}). Failed: ${failedIds}. First error: ${errors[0]?.error}`
     );
   }
 
@@ -461,11 +465,14 @@ export async function runStage4(
     }
   }
 
+  const failNote = errors.length > 0
+    ? ` (${errors.length} failed: ${errors.map(e => e.respondent).join(', ')})`
+    : "";
   await updateProgress(
     supabase,
     runId,
     100,
-    `Saved ${results.length}/${totalTasks} survey responses${errors.length > 0 ? ` (${errors.length} failed)` : ""}`,
+    `Saved ${results.length}/${totalTasks} survey responses${failNote}`,
     "completed"
   );
 

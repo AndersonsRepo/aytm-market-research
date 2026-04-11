@@ -493,10 +493,19 @@ export async function runStage2(
       follow_ups: interview.followUps.length > 0 ? interview.followUps : null,
     };
     const { error: insertErr } = await supabase.from('interview_transcripts').insert(transcriptRow);
-    if (insertErr?.code === '42703') {
-      // follow_ups column doesn't exist yet — retry without it
-      delete transcriptRow.follow_ups;
-      await supabase.from('interview_transcripts').insert(transcriptRow);
+    if (insertErr) {
+      if (insertErr.code === '42703') {
+        // follow_ups column doesn't exist yet — retry without it
+        delete transcriptRow.follow_ups;
+        const { error: retryErr } = await supabase.from('interview_transcripts').insert(transcriptRow);
+        if (retryErr) {
+          console.error(`Failed to save transcript ${interview.interviewId} (retry):`, retryErr.message);
+          throw new Error(`Transcript insert failed for ${interview.interviewId}: ${retryErr.message}`);
+        }
+      } else {
+        console.error(`Failed to save transcript ${interview.interviewId}:`, insertErr.message);
+        throw new Error(`Transcript insert failed for ${interview.interviewId}: ${insertErr.message}`);
+      }
     }
 
     interviewsCompleted++;
@@ -597,7 +606,26 @@ export async function runStage2(
       return a[0].localeCompare(b[0]); // alphabetical
     });
     const consensusEmotion = sorted[0][0];
-    const consensusResult = allClassifications.find(c => c.primary_emotion === consensusEmotion) || allClassifications[0];
+    const consensusBase = allClassifications.find(c => c.primary_emotion === consensusEmotion) || allClassifications[0];
+
+    // Use median intensity across models that agreed on the consensus emotion,
+    // falling back to all models. Median preserves more variance than mean
+    // (avoids everything rounding to the same value).
+    const matchingIntensities = allClassifications
+      .filter(c => c.primary_emotion === consensusEmotion)
+      .map(c => c.intensity)
+      .sort((a, b) => a - b);
+    const intensities = matchingIntensities.length > 0
+      ? matchingIntensities
+      : allClassifications.map(c => c.intensity).sort((a, b) => a - b);
+    const medianIntensity = intensities.length % 2 === 0
+      ? Math.round((intensities[intensities.length / 2 - 1] + intensities[intensities.length / 2]) / 2)
+      : intensities[Math.floor(intensities.length / 2)];
+
+    const consensusResult: EmotionClassification = {
+      ...consensusBase,
+      intensity: medianIntensity,
+    };
 
     emotionMap.set(iv.interviewId, consensusResult);
 

@@ -207,6 +207,7 @@ export async function runStage3(
 
   // Generate a survey design from each of the 3 models
   const designs: SurveyDesignResult[] = [];
+  const failedModels: Array<{ model: string; error: string }> = [];
   let modelsCompleted = 0;
 
   for (const modelId of MODEL_IDS) {
@@ -262,6 +263,7 @@ export async function runStage3(
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error(`Survey design failed for ${modelLabel}:`, errMsg);
+      failedModels.push({ model: modelLabel, error: errMsg.slice(0, 200) });
 
       // Record failure in progress so UI can surface it
       await updateProgress(
@@ -272,11 +274,14 @@ export async function runStage3(
       );
     }
     modelsCompleted++;
+    const statusNote = failedModels.length > 0
+      ? ` (${failedModels.length} model${failedModels.length > 1 ? 's' : ''} failed)`
+      : '';
     await updateProgress(
       supabase,
       runId,
       Math.round((modelsCompleted / MODEL_IDS.length) * 90),
-      `${modelLabel} survey design complete`,
+      `${modelLabel} survey design complete${statusNote}`,
     );
   }
 
@@ -370,10 +375,14 @@ export async function runStage3(
       question_mapping: questionMapping,
       gap_sections: gapSections,
       models_used: designs.map(d => d.modelLabel),
+      ...(failedModels.length > 0 ? { failed_models: failedModels } : {}),
     },
   });
 
-  await updateProgress(supabase, runId, 100, 'Survey design complete', 'completed');
+  const completeMsg = failedModels.length > 0
+    ? `Survey design complete (${designs.length}/3 models succeeded, failed: ${failedModels.map(f => f.model).join(', ')})`
+    : 'Survey design complete';
+  await updateProgress(supabase, runId, 100, completeMsg, 'completed');
 
   return {
     designCount: designs.length,

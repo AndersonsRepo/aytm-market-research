@@ -79,6 +79,7 @@ CREATE TABLE interview_themes (
   frequency INTEGER,
   keywords TEXT[],
   supporting_quotes JSONB,
+  model TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
