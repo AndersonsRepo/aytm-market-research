@@ -494,7 +494,7 @@ export async function runStage2(
     };
     const { error: insertErr } = await supabase.from('interview_transcripts').insert(transcriptRow);
     if (insertErr) {
-      if (insertErr.code === '42703') {
+      if (insertErr.code === '42703' || insertErr.message?.includes('schema cache')) {
         // follow_ups column doesn't exist yet — retry without it
         delete transcriptRow.follow_ups;
         const { error: retryErr } = await supabase.from('interview_transcripts').insert(transcriptRow);

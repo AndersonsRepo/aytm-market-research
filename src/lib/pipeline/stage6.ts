@@ -440,25 +440,45 @@ export async function runStage6(
     "Confidence intervals complete"
   );
 
+
   // ── 4. Grade assignment ───────────────────────────────────────────────
+  // Grade uses structural quality signals (respondent checks + inter-model
+  // agreement), NOT distribution-shape bias tests. The bias tests compare
+  // against a uniform baseline which is wrong for intentionally calibrated
+  // synthetic data — they remain as informational metrics only.
+
+  // Fetch Stage 5 inter-LLM reliability (Krippendorff's alpha) if available
+  let stampAlpha: number | null = null;
+  const { data: reliabilityResult } = await supabase
+    .from("analysis_results")
+    .select("result")
+    .eq("run_id", runId)
+    .eq("analysis_type", "inter_llm_reliability")
+    .maybeSingle();
+
+  if (reliabilityResult?.result) {
+    const r = reliabilityResult.result as Record<string, unknown>;
+    if (typeof r.overall_alpha === "number") {
+      stampAlpha = r.overall_alpha;
+    }
+  }
 
   const allAttentionPass = attentionFailCount === 0;
-  const biasSignificantCount = biasDetection.filter(
-    (b) => b.significant
-  ).length;
+  const avgQuality = mean(allScores);
 
   let grade: string;
-  if (totalIssues < 5 && allAttentionPass && biasSignificantCount === 0) {
+  const stampPass = stampAlpha !== null && stampAlpha >= 0.667;
+  const strongAgreement = avgModelCorr >= 0.7;
+
+  if (totalIssues < 5 && allAttentionPass && stampPass && strongAgreement) {
     grade = "A";
   } else if (
-    (totalIssues >= 5 && totalIssues <= 10) ||
-    biasSignificantCount === 1
+    totalIssues <= 10 &&
+    (stampPass || strongAgreement) &&
+    avgQuality >= 70
   ) {
     grade = "B";
-  } else if (
-    (totalIssues > 10 && totalIssues <= 20) ||
-    biasSignificantCount === 2
-  ) {
+  } else if (totalIssues <= 20 && avgQuality >= 50) {
     grade = "C";
   } else {
     grade = "D";
@@ -470,7 +490,7 @@ export async function runStage6(
 
   if (grade === "A") {
     parts.push(
-      "Data quality is excellent. All attention checks passed and no significant biases detected."
+      "Data quality is excellent. Strong inter-model agreement and all structural checks passed."
     );
   } else if (grade === "B") {
     parts.push("Data quality is good with minor issues.");
@@ -491,26 +511,29 @@ export async function runStage6(
   }
   if (straightLiners > 0) {
     parts.push(
-      `${straightLiners} respondent(s) showed straight-lining behavior (response SD < 0.5).`
+      `${straightLiners} respondent(s) showed straight-lining behavior (response SD < 0.3).`
     );
   }
-  if (centralPct > 0.3) {
+  if (stampAlpha !== null) {
     parts.push(
-      `Central tendency bias detected: ${Math.round(centralPct * 100)}% of responses at midpoint.`
+      `STAMP inter-model reliability: \u03b1=${round3(stampAlpha)} (${stampPass ? "passes" : "below"} \u22650.667 threshold).`
     );
   }
-  if (acquiescencePct > 0.5) {
+
+  const significantBiases = biasDetection.filter(b => b.significant && b.test_name !== "Model Agreement (Mean Correlation)");
+  if (significantBiases.length > 0) {
     parts.push(
-      `Acquiescence bias detected: ${Math.round(acquiescencePct * 100)}% of responses rated 4-5.`
+      `Distribution note: ${significantBiases.map(b => b.test_name.toLowerCase()).join(", ")} detected vs. uniform baseline (informational \u2014 expected for calibrated data).`
     );
   }
 
   parts.push(
-    `Average quality score: ${Math.round(mean(allScores))}/100. ` +
+    `Average quality score: ${Math.round(avgQuality)}/100. ` +
       `Model agreement correlation: ${round3(avgModelCorr)}.`
   );
 
   const recommendation = parts.join(" ");
+
 
   // ── Save validation report ────────────────────────────────────────────
 

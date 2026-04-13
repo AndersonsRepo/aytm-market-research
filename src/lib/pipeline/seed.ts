@@ -944,7 +944,7 @@ export async function seedDemoData(supabase: SupabaseClient, runId: string): Pro
 
   // Insert transcripts — handle missing follow_ups column gracefully
   const { error: txErr } = await supabase.from("interview_transcripts").insert(transcriptRows);
-  if (txErr?.code === '42703') {
+  if (txErr?.code === '42703' || txErr?.message?.includes('schema cache')) {
     // follow_ups column doesn't exist — strip it and retry
     const stripped = transcriptRows.map(r => { const { follow_ups, ...rest } = r as Record<string, unknown>; return rest; });
     await supabase.from("interview_transcripts").insert(stripped);

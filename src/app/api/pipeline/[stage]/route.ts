@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Allow up to 300s (5min) for long-running stages (2 and 4 generate many LLM calls)
-export const maxDuration = 300;
+export const maxDuration = 600;
 
 interface StageResultWithCost {
   totalTokens?: number;
@@ -21,7 +21,8 @@ export async function POST(
   }
 
   const body = await req.json();
-  const { runId, openrouterKey } = body;
+  const { runId, openrouterKey: clientKey } = body;
+  const openrouterKey = clientKey || process.env.OPENROUTER_API_KEY || "";
 
   if (!runId) {
     return NextResponse.json({ error: "runId required" }, { status: 400 });
@@ -75,7 +76,7 @@ export async function POST(
     await supabase.from("analysis_results").delete().eq("run_id", runId).in("analysis_type", stage3Types);
   }
   // ── Fix 10: Cost ceiling check ──────────────────────────────────────────
-  const COST_CEILING = 5.00;
+  const COST_CEILING = 15.00;
   const { data: priorStages } = await supabase
     .from("stage_progress").select("cost_estimate").eq("run_id", runId);
   const accumulatedCost = (priorStages || []).reduce(
