@@ -166,11 +166,64 @@ function getRespondentConfig(
   };
 }
 
+
+// ---------------------------------------------------------------------------
+// Survey Context from Stage 3
+// ---------------------------------------------------------------------------
+
+interface SurveySection {
+  section_id?: string;
+  section_label?: string;
+  questions?: Array<{ id?: string; text?: string; type?: string; options?: unknown[] }>;
+}
+
+function synthesizeSurveyContext(
+  designs: Array<{ model: string; design: Record<string, unknown> }>
+): string {
+  if (designs.length === 0) return "";
+
+  const sectionSummaries: string[] = [];
+  const seenSections = new Set<string>();
+
+  for (const { model, design } of designs) {
+    const sections = (design.sections || []) as SurveySection[];
+    for (const section of sections) {
+      const label = section.section_label || section.section_id || "Unknown";
+      const normalizedLabel = label.toLowerCase().replace(/\s+/g, "_");
+      if (seenSections.has(normalizedLabel)) continue;
+      seenSections.add(normalizedLabel);
+
+      const questions = Array.isArray(section.questions) ? section.questions : [];
+      if (questions.length === 0) continue;
+
+      const qLines = questions.slice(0, 5).map((q) => {
+        const qText = q.text || q.id || "?";
+        const qType = q.type || "";
+        return `  - ${qText}${qType ? ` [${qType}]` : ""}`;
+      });
+      if (questions.length > 5) {
+        qLines.push(`  - ... and ${questions.length - 5} more questions`);
+      }
+
+      sectionSummaries.push(`${label} (from ${model}):\n${qLines.join("\n")}`);
+    }
+  }
+
+  if (sectionSummaries.length === 0) return "";
+
+  return `SURVEY INSTRUMENT CONTEXT (designed in Stage 3 by multiple AI models):
+The following survey sections were designed based on qualitative interview themes. Use this context to understand the survey framing and intent when predicting responses:
+
+${sectionSummaries.join("\n\n")}
+
+NOTE: You must respond using the EXACT question keys specified in the response schema below, not the section labels above. The above context is for understanding the survey's intent and framing.`;
+}
+
 // ---------------------------------------------------------------------------
 // Prompt Construction
 // ---------------------------------------------------------------------------
 
-function buildSystemPrompt(config: RespondentConfig): string {
+function buildSystemPrompt(config: RespondentConfig, surveyContext?: string): string {
   const d = config.demographics;
   return `You are a survey research analyst predicting how a specific consumer would respond to a product survey. You are modeling this person's likely behavior — not expressing your own opinions or trying to be helpful.
 
@@ -209,7 +262,7 @@ CALIBRATION PRINCIPLES (based on consumer behavior for major discretionary purch
 - Many consumers are unmotivated by ANY product framing at this price point. An uninterested consumer should reject all concepts rather than picking one to be agreeable.
 - Use the full 1-5 scale. A realistic respondent has some strong opinions (1 or 5) and some moderate ones (2 or 4), but rarely rates everything at the midpoint.
 
-STAMP CODEBOOK — QUESTION-SPECIFIC GUIDANCE:
+${surveyContext ? `\n${surveyContext}\n\n` : ""}STAMP CODEBOOK — QUESTION-SPECIFIC GUIDANCE:
 
 Q1 (Purchase Interest at $23K):
 - DEFINITION: How interested would this consumer be in purchasing a $23K prefabricated backyard structure?
@@ -339,10 +392,11 @@ async function generateOne(
   modelLabel: string,
   segment: Segment,
   respondentIndex: number,
-  userPrompt: string
+  userPrompt: string,
+  surveyContext?: string
 ): Promise<GeneratedResponse> {
   const config = getRespondentConfig(segment, respondentIndex, modelId);
-  const systemPrompt = buildSystemPrompt(config);
+  const systemPrompt = buildSystemPrompt(config, surveyContext);
 
   const result = await callOpenRouterWithUsage(apiKey, modelId, systemPrompt, userPrompt);
   const parsed = parseJsonResponse(result.content);
@@ -369,6 +423,22 @@ export async function runStage4(
   apiKey: string
 ): Promise<Stage4Result & { totalTokens: number; totalCost: number }> {
   const userPrompt = buildUserPrompt();
+
+  // ── Fetch Stage 3 survey designs (if available) ──────────────────────
+  let surveyContext: string | undefined;
+  const { data: surveyDesigns } = await supabase
+    .from("survey_designs")
+    .select("model, design")
+    .eq("run_id", runId);
+
+  if (surveyDesigns && surveyDesigns.length > 0) {
+    surveyContext = synthesizeSurveyContext(
+      surveyDesigns.map((d: { model: string; design: Record<string, unknown> }) => ({
+        model: d.model,
+        design: d.design as Record<string, unknown>,
+      }))
+    );
+  }
 
   // Build task list: model × segment × respondent_index
   interface TaskDef {
@@ -402,7 +472,8 @@ export async function runStage4(
         def.modelLabel,
         def.segment,
         def.respondentIndex,
-        userPrompt
+        userPrompt,
+        surveyContext
       );
       completed++;
       const pct = Math.round((completed / totalTasks) * 100);

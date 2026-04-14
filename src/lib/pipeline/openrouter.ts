@@ -48,18 +48,28 @@ export async function callOpenRouterWithUsage(
   const maxTokens = options?.maxTokens ?? DEFAULT_MAX_TOKENS;
   const timeoutMs = options?.timeoutMs ?? REQUEST_TIMEOUT_MS;
 
+  // Azure requires the word "json" in message content when json_object format is set.
+  // Gemini has no response_format support, so it needs stronger prompt-level enforcement.
+  const useJsonFormat = model.startsWith('openai/') || model.startsWith('anthropic/');
+  const isGemini = model.startsWith('google/');
+  let finalUserPrompt = userPrompt;
+  if (useJsonFormat && !userPrompt.toLowerCase().includes('json')) {
+    finalUserPrompt = `${userPrompt}\n\nRespond with valid JSON only.`;
+  } else if (isGemini && !userPrompt.toLowerCase().includes('json')) {
+    finalUserPrompt = `${userPrompt}\n\nIMPORTANT: You MUST respond with ONLY a valid JSON object. No explanations, no markdown, no prose — just the raw JSON object starting with { and ending with }.`;
+  }
+
   const body: OpenRouterRequest = {
     model,
     messages: [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
+      { role: 'user', content: finalUserPrompt },
     ],
     temperature,
     max_tokens: maxTokens,
   };
 
-  // GPT and Claude support response_format; Gemini does not
-  if (model.startsWith('openai/') || model.startsWith('anthropic/')) {
+  if (useJsonFormat) {
     body.response_format = { type: 'json_object' };
   }
 
@@ -146,9 +156,9 @@ export function parseJsonResponse<T = Record<string, unknown>>(raw: string): T {
     // continue to next strategy
   }
 
-  // Attempt 2: strip markdown fences
+  // Attempt 2: strip markdown fences (handles ```json, ```JSON, ``` with extra whitespace)
   let cleaned = raw.trim();
-  cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '');
+  cleaned = cleaned.replace(/^```(?:json|JSON)?\s*\n?/, '');
   cleaned = cleaned.replace(/\n?```\s*$/, '');
   try {
     return JSON.parse(cleaned) as T;
@@ -156,13 +166,27 @@ export function parseJsonResponse<T = Record<string, unknown>>(raw: string): T {
     // continue to next strategy
   }
 
-  // Attempt 3: regex extract first {...}
+  // Attempt 3: fix trailing commas then parse
+  const commaFixed = cleaned.replace(/,\s*([}\]])/g, '$1');
+  try {
+    return JSON.parse(commaFixed) as T;
+  } catch {
+    // continue to next strategy
+  }
+
+  // Attempt 4: regex extract first {...} block
   const match = raw.match(/\{[\s\S]*\}/);
   if (match) {
     try {
       return JSON.parse(match[0]) as T;
     } catch {
-      // fall through
+      // try trailing comma fix on extracted block
+      const fixed = match[0].replace(/,\s*([}\]])/g, '$1');
+      try {
+        return JSON.parse(fixed) as T;
+      } catch {
+        // fall through
+      }
     }
   }
 
