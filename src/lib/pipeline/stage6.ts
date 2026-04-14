@@ -451,13 +451,13 @@ export async function runStage6(
   let stampAlpha: number | null = null;
   const { data: reliabilityResult } = await supabase
     .from("analysis_results")
-    .select("result")
+    .select("results")
     .eq("run_id", runId)
     .eq("analysis_type", "inter_llm_reliability")
     .maybeSingle();
 
-  if (reliabilityResult?.result) {
-    const r = reliabilityResult.result as Record<string, unknown>;
+  if (reliabilityResult?.results) {
+    const r = reliabilityResult.results as Record<string, unknown>;
     if (typeof r.overall_alpha === "number") {
       stampAlpha = r.overall_alpha;
     }
@@ -468,7 +468,7 @@ export async function runStage6(
 
   let grade: string;
   const stampPass = stampAlpha !== null && stampAlpha >= 0.667;
-  const strongAgreement = avgModelCorr >= 0.7;
+  const strongAgreement = avgModelCorr >= 0.6;
 
   if (totalIssues < 5 && allAttentionPass && stampPass && strongAgreement) {
     grade = "A";
