@@ -263,13 +263,20 @@ async function generateInterview(
   apiKey: string,
   modelId: string,
   persona: InterviewPersona,
+  discoveryContext?: string,
 ): Promise<GeneratedInterview> {
   // Turn 1: Core interview questions
+  const userPrompt = discoveryContext
+    ? `PRODUCT CONTEXT (from client discovery):
+${discoveryContext}
+
+${buildInterviewUserPrompt()}`
+    : buildInterviewUserPrompt();
   const result = await callOpenRouterWithUsage(
     apiKey,
     modelId,
     buildPersonaSystemPrompt(persona),
-    buildInterviewUserPrompt(),
+    userPrompt,
     { temperature: 0.8, maxTokens: 3000 },
   );
 
@@ -463,6 +470,25 @@ export async function runStage2(
 
   await updateProgress(supabase, runId, 0, 'Starting consumer interviews...');
 
+  // ── Fetch Stage 1 discovery brief (if available) ──────────────────────
+
+  let discoveryContext: string | undefined;
+  const { data: briefData } = await supabase
+    .from('discovery_briefs')
+    .select('brief')
+    .eq('run_id', runId)
+    .maybeSingle();
+
+  if (briefData?.brief) {
+    const b = briefData.brief as Record<string, unknown>;
+    const parts: string[] = [];
+    if (b.product_summary) parts.push(`Product: ${b.product_summary}`);
+    if (b.key_barriers) parts.push(`Key barriers: ${b.key_barriers}`);
+    if (b.target_segments) parts.push(`Target segments: ${b.target_segments}`);
+    if (b.positioning_strategy) parts.push(`Positioning: ${b.positioning_strategy}`);
+    if (parts.length > 0) discoveryContext = parts.join('\n');
+  }
+
   // ── Part A: Generate 30 interviews ────────────────────────────────────
 
   const totalInterviews = INTERVIEW_PERSONAS.length; // 30
@@ -471,7 +497,7 @@ export async function runStage2(
 
   const interviewTasks = INTERVIEW_PERSONAS.map((persona, i) => async () => {
     const modelId = getModelForPersona(i);
-    const interview = await generateInterview(apiKey, modelId, persona);
+    const interview = await generateInterview(apiKey, modelId, persona, discoveryContext);
 
     // Persist to Supabase (include follow-ups if column exists)
     const transcriptRow: Record<string, unknown> = {
