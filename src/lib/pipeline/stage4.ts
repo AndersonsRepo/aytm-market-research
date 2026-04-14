@@ -101,10 +101,9 @@ function seededRng(seed: number): () => number {
 function hashSeed(
   segmentId: number,
   respondentIndex: number,
-  modelId: string
 ): number {
   let hash = 0;
-  const str = `${segmentId}:${respondentIndex}:${modelId}`;
+  const str = `${segmentId}:${respondentIndex}`;
   for (let i = 0; i < str.length; i++) {
     hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
   }
@@ -122,9 +121,8 @@ function seededChoice<T>(rng: () => number, arr: T[]): T {
 function getRespondentConfig(
   segment: Segment,
   respondentIndex: number,
-  modelId: string
 ): RespondentConfig {
-  const rng = seededRng(hashSeed(segment.id, respondentIndex, modelId));
+  const rng = seededRng(hashSeed(segment.id, respondentIndex));
 
   const name = seededChoice(rng, FIRST_NAMES);
 
@@ -304,7 +302,7 @@ async function generateOne(
   respondentIndex: number,
   userPrompt: string
 ): Promise<GeneratedResponse> {
-  const config = getRespondentConfig(segment, respondentIndex, modelId);
+  const config = getRespondentConfig(segment, respondentIndex);
   const systemPrompt = buildSystemPrompt(config);
 
   const result = await callOpenRouterWithUsage(apiKey, modelId, systemPrompt, userPrompt);
