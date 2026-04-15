@@ -323,11 +323,21 @@ export async function runStage1(
 
   // Persist brief
   const modelsUsed = MODEL_IDS.map((id) => MODEL_LABELS[id]);
-  await supabase.from('discovery_briefs').insert({
+  const { error: briefInsertError } = await supabase.from('discovery_briefs').insert({
     run_id: runId,
     brief,
     models_used: modelsUsed,
   });
+
+  if (briefInsertError) {
+    console.error('discovery_briefs insert failed:', briefInsertError);
+    await updateProgress(
+      supabase,
+      runId,
+      95,
+      `Warning: Failed to persist brief (${briefInsertError.message}) — returning results without DB storage`,
+    );
+  }
 
   await updateProgress(supabase, runId, 100, 'Client discovery complete', 'completed');
 

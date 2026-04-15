@@ -97,6 +97,8 @@ Include these section types:
 7. **Purchase intent & pricing** — willingness to buy, acceptable price range, financing interest
 8. **Demographics** — age, income, household size, home type, work arrangement
 
+Aim for 30-40 total questions. Prioritize coverage of all section types over depth in any single section.
+
 Also include in the top-level JSON:
 - "estimated_duration_minutes": integer
 - "total_questions": integer count`;
@@ -223,7 +225,7 @@ export async function runStage3(
     try {
       const result = await callOpenRouterWithUsage(apiKey, modelId, system, user, {
         temperature: 0.4,
-        maxTokens: 6000,
+        maxTokens: 10000,
       });
 
       totalTokens += result.usage.total_tokens;
