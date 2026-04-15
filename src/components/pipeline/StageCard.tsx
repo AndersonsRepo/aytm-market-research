@@ -834,8 +834,8 @@ function ValidationResults({ runId }: { runId: string }) {
           <SectionHeader>Bias Detection</SectionHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {(Array.isArray(biasItems) ? biasItems : Object.entries(biasItems)).slice(0, 6).map((item: any, i: number) => {
-              const [key, val] = Array.isArray(item) ? item : [item.test || item.name || `Check ${i + 1}`, item];
-              const passed = typeof val === "object" ? val.passed ?? val.result === "pass" : !!val;
+              const [key, val] = Array.isArray(item) ? item : [item.test_name || item.test || item.name || `Check ${i + 1}`, item];
+              const passed = typeof val === "object" ? (val.passed != null ? val.passed : val.significant != null ? !val.significant : val.result === "pass") : !!val;
               return (
                 <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${passed ? "border-emerald-800 bg-emerald-950/20" : "border-red-800 bg-red-950/20"}`}>
                   <span className={`text-sm ${passed ? "text-emerald-400" : "text-red-400"}`}>{passed ? "\u2713" : "\u2717"}</span>

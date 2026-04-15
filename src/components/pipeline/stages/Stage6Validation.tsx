@@ -119,7 +119,7 @@ export function Stage6Validation({ runId }: { runId: string }) {
   // ── Bias Detection ──
   const biasItems = report.bias_detection || {};
   const biasEntries: [string, any][] = Array.isArray(biasItems)
-    ? biasItems.map((b: any, i: number) => [b.test || b.name || `Check ${i + 1}`, b])
+    ? biasItems.map((b: any, i: number) => [b.test_name || b.test || b.name || `Check ${i + 1}`, b])
     : Object.entries(biasItems);
 
   return (
@@ -284,7 +284,7 @@ export function Stage6Validation({ runId }: { runId: string }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {biasEntries.slice(0, 9).map(([key, val], i) => {
               const passed = typeof val === "object"
-                ? (val.passed != null ? val.passed : val.result === "pass" || !val.flagged)
+                ? (val.passed != null ? val.passed : val.significant != null ? !val.significant : val.result === "pass")
                 : !!val;
               return (
                 <div key={i} className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${
