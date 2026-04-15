@@ -15,6 +15,44 @@ import {
   DEFAULT_MAX_TOKENS,
   REQUEST_TIMEOUT_MS,
 } from './constants';
+import https from 'https';
+
+/**
+ * Fallback HTTP client using Node.js https module.
+ * Bypasses undici's strict Latin1 header validation that causes
+ * "Cannot convert argument to a ByteString" errors with some API providers.
+ */
+function httpsPost(
+  url: string,
+  headers: Record<string, string>,
+  body: string,
+  timeoutMs: number,
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const req = https.request(
+      {
+        hostname: parsed.hostname,
+        port: 443,
+        path: parsed.pathname + parsed.search,
+        method: 'POST',
+        headers: { ...headers, 'Content-Length': Buffer.byteLength(body) },
+        timeout: timeoutMs,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => {
+          resolve({ status: res.statusCode ?? 500, body: Buffer.concat(chunks).toString('utf-8') });
+        });
+      },
+    );
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
+    req.write(body);
+    req.end();
+  });
+}
 
 export interface CallOpenRouterOptions {
   temperature?: number;
@@ -111,6 +149,34 @@ export async function callOpenRouterWithUsage(
       };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+
+      // ByteString error = undici header encoding issue; use https fallback
+      if (lastError.message.includes('ByteString')) {
+        console.warn(`OpenRouter ByteString error for ${model}, using https fallback`);
+        try {
+          const fallbackResult = await httpsPost(
+            OPENROUTER_URL,
+            {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            JSON.stringify(body),
+            timeoutMs,
+          );
+          if (fallbackResult.status >= 200 && fallbackResult.status < 300) {
+            const data = JSON.parse(fallbackResult.body) as OpenRouterResponse;
+            if (data.choices?.[0]?.message?.content) {
+              return {
+                content: data.choices[0].message.content,
+                usage: data.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+              };
+            }
+          }
+          lastError = new Error(`HTTPS fallback returned status ${fallbackResult.status}: ${fallbackResult.body.slice(0, 200)}`);
+        } catch (fbErr) {
+          lastError = fbErr instanceof Error ? fbErr : new Error(String(fbErr));
+        }
+      }
 
       if (attempt < MAX_RETRIES - 1) {
         // Exponential backoff with jitter: 2^attempt + random(0,1)
