@@ -307,7 +307,19 @@ export async function runStage1(
   totalTokens += synthesisResult.usage.total_tokens;
   totalCost += estimateCost('openai/gpt-4.1-mini', synthesisResult.usage);
 
-  const brief = parseJsonResponse(synthesisResult.content);
+  let brief: Record<string, unknown>;
+  try {
+    brief = parseJsonResponse(synthesisResult.content);
+  } catch {
+    brief = {
+      product_summary: 'Synthesis JSON parsing failed — raw response preserved below.',
+      target_segments: [],
+      key_barriers: [],
+      positioning_strategy: '',
+      recommended_research_focus: [],
+      raw_synthesis: synthesisResult.content.slice(0, 2000),
+    };
+  }
 
   // Persist brief
   const modelsUsed = MODEL_IDS.map((id) => MODEL_LABELS[id]);

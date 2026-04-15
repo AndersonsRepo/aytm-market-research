@@ -836,7 +836,7 @@ export const ALL_LIKERT_KEYS = Object.keys(LIKERT_KEYS);
 
 export const SEGMENT_PROFILE_KEYS = [
   'Q1', 'Q2',
-  'Q6a', 'Q6b', 'Q6c', 'Q6d', 'Q6e',
+  'Q5_cost', 'Q5_hoa', 'Q5_permit', 'Q5_space', 'Q5_financing', 'Q5_quality', 'Q5_resale',
   'Q7', 'Q8', 'Q9',
   'Q10', 'Q11', 'Q12',
   'Q17', 'Q19',
