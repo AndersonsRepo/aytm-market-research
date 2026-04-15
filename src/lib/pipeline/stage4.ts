@@ -328,7 +328,7 @@ function validateResponse(
 
   // Seeded RNG for fallback values — avoids always defaulting to midpoint 3
   const fallbackRng = seededRng(
-    hashSeed(config.segment_id, 999, config.segment_name)
+    hashSeed(config.segment_id, 999)
   );
 
   // Clamp Likert values to 1-5
