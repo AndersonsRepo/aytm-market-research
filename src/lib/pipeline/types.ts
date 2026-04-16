@@ -452,3 +452,68 @@ export type StageFn = (
   apiKey: string
 ) => Promise<unknown>;
 
+
+// --- Pipeline Config (editable via /config page) ---
+
+export interface PipelineConfigQuestions {
+  interviewQuestions: Record<string, string>;
+  followUpProbes: Array<{
+    id: string;
+    trigger: string;
+    target: string;
+    question: string;
+  }>;
+  discoveryQuestions: Record<string, string>;
+}
+
+export interface PipelineConfigSegments {
+  segments: Segment[];
+  ageOptions: Record<number, string[]>;
+  incomeOptions: Record<number, string[]>;
+  workOptions: Record<number, string[]>;
+  outdoorOptions: Record<number, string[]>;
+}
+
+export interface PipelineConfigSurveySchema {
+  responseSchema: string;
+  likertKeys: Record<string, string>;
+  barrierKeys: Record<string, string>;
+  conceptAppeal: Record<string, string>;
+  categoricalKeys: string[];
+  demographicKeys: string[];
+  allNumericKeys: string[];
+}
+
+export interface PipelineConfigApiSettings {
+  models: Record<string, ModelInfo>;
+  maxRetries: number;
+  defaultTemperature: number;
+  defaultMaxTokens: number;
+  requestTimeoutMs: number;
+  respondentsPerSegmentPerModel: number;
+  maxConcurrentApiCalls: number;
+  modelBias: ModelBias;
+}
+
+export interface PipelineConfigFounderBrief {
+  founderBrief: string;
+  discoverySystemPrompt: string;
+}
+
+export interface PipelineConfig {
+  questions: PipelineConfigQuestions;
+  personas: InterviewPersona[];
+  segments: PipelineConfigSegments;
+  segmentProfiles: Record<number, SegmentProfile>;
+  surveySchema: PipelineConfigSurveySchema;
+  founderBrief: PipelineConfigFounderBrief;
+  apiSettings: PipelineConfigApiSettings;
+  benchmarks: Record<string, unknown>;
+}
+
+export const PIPELINE_CONFIG_SECTIONS = [
+  'questions', 'personas', 'segments', 'segmentProfiles',
+  'surveySchema', 'founderBrief', 'apiSettings', 'benchmarks',
+] as const;
+
+export type PipelineConfigSection = typeof PIPELINE_CONFIG_SECTIONS[number];

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getFullConfig } from "@/lib/pipeline/config";
 
 export async function POST(req: NextRequest) {
   const { mode } = await req.json(); // "demo" | "live"
@@ -21,6 +22,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
 
   const runId = data.id;
+
+  // Snapshot active config for reproducibility
+  try {
+    const config = await getFullConfig(supabase);
+    await supabase
+      .from("pipeline_runs")
+      .update({ config_snapshot: config })
+      .eq("id", runId);
+  } catch (e) {
+    // Non-fatal: pipeline can still run with defaults if snapshot fails
+    console.warn("Config snapshot failed:", e);
+  }
 
   // Create 6 stage_progress rows (all pending)
   const stages = Array.from({ length: 6 }, (_, i) => ({

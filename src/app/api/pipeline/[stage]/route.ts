@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getRunConfig } from "@/lib/pipeline/config";
+import type { PipelineConfig } from "@/lib/pipeline/types";
 
 // Allow up to 300s (5min) for long-running stages (2 and 4 generate many LLM calls)
 export const maxDuration = 600;
@@ -94,9 +96,12 @@ export async function POST(
 
   try {
     // Dynamic import to avoid loading all stages upfront
+    // Resolve config for this run (snapshot from start, or current defaults)
+    const config = await getRunConfig(supabase, runId);
+
     const runners: Record<
       number,
-      (supabase: ReturnType<typeof createAdminClient>, runId: string, apiKey: string) => Promise<unknown>
+      (supabase: ReturnType<typeof createAdminClient>, runId: string, apiKey: string, config?: PipelineConfig) => Promise<unknown>
     > = {
       1: (await import("@/lib/pipeline/stage1")).runStage1,
       2: (await import("@/lib/pipeline/stage2")).runStage2,
@@ -106,7 +111,7 @@ export async function POST(
       6: (await import("@/lib/pipeline/stage6")).runStage6,
     };
 
-    const result = (await runners[stageNum](supabase, runId, openrouterKey)) as StageResultWithCost;
+    const result = (await runners[stageNum](supabase, runId, openrouterKey, config)) as StageResultWithCost;
 
     // Extract cost data if returned by the stage
     const tokens = result?.totalTokens ?? 0;
