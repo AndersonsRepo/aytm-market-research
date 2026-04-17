@@ -24,7 +24,11 @@ export async function POST(
 
   const body = await req.json();
   const { runId, openrouterKey: clientKey } = body;
-  const openrouterKey = clientKey || process.env.OPENROUTER_API_KEY || "";
+  const openrouterKey = clientKey || "";
+
+  if (!openrouterKey) {
+    return NextResponse.json({ error: "OpenRouter API key required — paste yours into the key field before starting a live run." }, { status: 400 });
+  }
 
   if (!runId) {
     return NextResponse.json({ error: "runId required" }, { status: 400 });
