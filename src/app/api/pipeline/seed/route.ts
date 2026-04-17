@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { seedDemoData } from "@/lib/pipeline/seed";
+import { enforceRateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
+  const limited = await enforceRateLimit(req, "seed", 3, 3600);
+  if (limited) return limited;
+
   const { runId } = await req.json();
   const supabase = createAdminClient();
 

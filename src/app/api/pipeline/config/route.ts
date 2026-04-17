@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getFullConfig, getDefaultConfig } from "@/lib/pipeline/config";
 import { PIPELINE_CONFIG_SECTIONS } from "@/lib/pipeline/types";
 import type { PipelineConfigSection } from "@/lib/pipeline/types";
+import { enforceRateLimit } from "@/lib/rateLimit";
 
 /**
  * GET /api/pipeline/config
@@ -35,6 +36,9 @@ export async function GET(req: NextRequest) {
  * Body: { section: string, config: object }
  */
 export async function PUT(req: NextRequest) {
+  const limited = await enforceRateLimit(req, "config_put", 5, 3600);
+  if (limited) return limited;
+
   const body = await req.json();
   const { section, config } = body;
 

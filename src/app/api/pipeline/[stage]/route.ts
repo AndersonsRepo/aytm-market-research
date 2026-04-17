@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getRunConfig } from "@/lib/pipeline/config";
 import type { PipelineConfig } from "@/lib/pipeline/types";
+import { enforceRateLimit } from "@/lib/rateLimit";
 
 // Allow up to 300s (5min) for long-running stages (2 and 4 generate many LLM calls)
 export const maxDuration = 600;
@@ -16,6 +17,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ stage: string }> }
 ) {
+  const limited = await enforceRateLimit(req, "stage", 15, 3600);
+  if (limited) return limited;
+
   const { stage } = await params;
   const stageNum = parseInt(stage, 10);
   if (isNaN(stageNum) || stageNum < 1 || stageNum > 6) {

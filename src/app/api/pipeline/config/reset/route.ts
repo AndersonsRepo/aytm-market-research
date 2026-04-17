@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PIPELINE_CONFIG_SECTIONS } from "@/lib/pipeline/types";
 import type { PipelineConfigSection } from "@/lib/pipeline/types";
+import { enforceRateLimit } from "@/lib/rateLimit";
 
 /**
  * POST /api/pipeline/config/reset
@@ -10,6 +11,9 @@ import type { PipelineConfigSection } from "@/lib/pipeline/types";
  *   OR  { all: true }       — reset all sections
  */
 export async function POST(req: NextRequest) {
+  const limited = await enforceRateLimit(req, "config_reset", 5, 3600);
+  if (limited) return limited;
+
   const body = await req.json();
   const supabase = createAdminClient();
 
